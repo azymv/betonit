@@ -1,17 +1,24 @@
 "use client";
 
 import { useState } from "react";
+import { createClient } from '@supabase/supabase-js';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 
-export default function SignUpPage({
-  params,
-}: {
-  params: { locale: string };
-}) {
-  const { locale } = params;
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+);
+
+export const metadata = {
+  title: 'Sign Up - BetOnIt',
+  description: 'Create your BetOnIt account',
+};
+
+export default function SignUpPage(props) {
+  const locale = props.params?.locale || 'en';
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -19,7 +26,7 @@ export default function SignUpPage({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (password !== confirmPassword) {
@@ -31,13 +38,16 @@ export default function SignUpPage({
     setError("");
     
     try {
-      // Здесь будет логика регистрации с Supabase
-      console.log("Регистрация с email:", email, "и username:", username);
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { username } // Store username in user metadata
+        }
+      });
       
-      // Симуляция загрузки
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (error) throw error;
       
-      // Временная заглушка - перенаправление на страницу подтверждения
       window.location.href = `/${locale}/auth/verify`;
     } catch (err) {
       setError("Ошибка при регистрации. Пожалуйста, попробуйте еще раз.");
