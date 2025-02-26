@@ -6,11 +6,13 @@ import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 
-export default function SignInPage({
-  params,
-}: {
-  params: { locale: string };
-}) {
+interface PageProps {
+  params: {
+    locale: string;
+  };
+}
+
+export default function SignInPage({ params }: PageProps) {
   const { locale } = params;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
