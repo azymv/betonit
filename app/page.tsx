@@ -1,8 +1,6 @@
-import { redirect } from 'next/navigation';
 import { defaultLocale } from '../lib/i18n-config';
-
-export const dynamic = 'force-dynamic';
+import LocalizedHome from './[locale]/page';
 
 export default function Home() {
-  redirect(`/${defaultLocale}`);
+  return <LocalizedHome params={{ locale: defaultLocale }} />;
 }

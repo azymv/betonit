@@ -6,11 +6,6 @@ import { locales, defaultLocale } from './lib/i18n-config';
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Skip root path - let the page component handle it
-  if (pathname === '/') {
-    return NextResponse.next();
-  }
-
   // Skip static files and API routes
   if (
     pathname.startsWith('/_next') ||
@@ -22,12 +17,17 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Handle root path with rewrite
+  if (pathname === '/') {
+    return NextResponse.rewrite(new URL(`/${defaultLocale}`, request.url));
+  }
+
   // Check if the path has a valid locale
   const pathnameHasValidLocale = locales.some(
     locale => pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`
   );
 
-  // If no valid locale found, redirect to default locale
+  // Handle paths without locale
   if (!pathnameHasValidLocale) {
     return NextResponse.redirect(new URL(`/${defaultLocale}${pathname}`, request.url));
   }
