@@ -1,4 +1,3 @@
-import { Metadata } from 'next';
 import { createClient } from '@supabase/supabase-js';
 
 // Initialize Supabase client
@@ -7,13 +6,13 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 );
 
-// Metadata
+// Metadata as a plain object
 export const metadata = {
   title: 'Sign In - BetOnIt',
   description: 'Sign in to your BetOnIt account',
 };
 
-// Simple SignInForm component
+// SignInForm component
 const SignInForm = ({ locale }) => {
   const handleSignIn = async (event) => {
     event.preventDefault();
