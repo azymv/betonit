@@ -93,6 +93,10 @@ export default {
         poppins: ['var(--font-poppins)', 'sans-serif'],
         libreCaslon: ['var(--font-libre-caslon)', 'serif'],
       },
+      backgroundImage: {
+        'grid-pattern': 'radial-gradient(circle, rgba(107, 114, 128, 0.1) 1px, transparent 1px)',
+        'grid-pattern-light': 'radial-gradient(circle, rgba(107, 114, 128, 0.05) 1px, transparent 1px)'
+      },
     },
   },
   plugins: [animate, addVariablesForColors],
