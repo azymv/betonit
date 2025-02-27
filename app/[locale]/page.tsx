@@ -53,8 +53,16 @@ export default function HomePage() {
   return (
     <div>
       {/* Hero секция */}
-      <section className="hero-section bg-gradient-to-r from-primary to-primary/80 text-white py-32">
-        <div className="container mx-auto px-4 text-center">
+      <section 
+        className="hero-section text-white py-32 relative"
+        style={{
+          backgroundImage: "url('/images/ui/hero.jpg')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat"
+        }}
+      >
+        <div className="container mx-auto px-4 text-center relative z-10">
           <h1 className="text-4xl md:text-5xl font-normal mb-6">
             {t('home.title')}
           </h1>
