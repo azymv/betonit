@@ -2,15 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  font-family: var(--font-poppins);
-}
-
-.font-libre-caslon {
-  font-family: var(--font-libre-caslon);
-  font-weight: 400;
-}
- 
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -86,7 +77,6 @@ body {
   h1, h2, h3, h4, h5, h6 {
     @apply font-medium tracking-tight;
   }
-  /* Применяем Libre Caslon к заголовкам первого уровня в специфических разделах */
   .hero-section h1 {
     font-family: var(--font-libre-caslon);
     @apply font-normal;

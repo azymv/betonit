@@ -9,6 +9,8 @@ const poppins = Poppins({
   weight: ['300', '400', '500', '600', '700'],
   variable: '--font-poppins',
   display: 'swap',
+  preload: true,
+  adjustFontFallback: true,
 });
 
 const roboto = Roboto({
@@ -16,6 +18,8 @@ const roboto = Roboto({
   weight: ['300', '400', '500', '700'],
   variable: '--font-roboto',
   display: 'swap',
+  preload: true,
+  adjustFontFallback: true,
 });
 
 const libreCaslon = Libre_Caslon_Text({
@@ -23,6 +27,8 @@ const libreCaslon = Libre_Caslon_Text({
   weight: '400',
   variable: '--font-libre-caslon',
   display: 'swap',
+  preload: true,
+  adjustFontFallback: true,
 });
 
 export const metadata: Metadata = {
@@ -41,7 +47,10 @@ export default function RootLayout({
 
   return (
     <html lang={params.locale} className={`${mainFont.variable} ${libreCaslon.variable}`}>
-      <body className={`${mainFont.className} min-h-screen flex flex-col`}>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+      </head>
+      <body className={`${mainFont.className} min-h-screen flex flex-col antialiased`}>
         <Header locale={params.locale} />
         <main className="flex-grow">{children}</main>
         <Footer locale={params.locale} />
