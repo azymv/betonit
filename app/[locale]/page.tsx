@@ -66,15 +66,15 @@ export default function HomePage() {
   return (
     <div>
       {/* Hero секция */}
-      <section className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-16">
+      <section className="hero-section bg-gradient-to-r from-primary to-primary/80 text-white py-16">
         <div className="container mx-auto px-4 text-center">
-          <h1 className="text-4xl md:text-5xl font-bold mb-6">
+          <h1 className="text-4xl md:text-5xl font-normal mb-6">
             {t('home.title')}
           </h1>
           <p className="text-xl mb-8 max-w-2xl mx-auto">
             {t('home.subtitle')}
           </p>
-          <Button size="lg" asChild>
+          <Button className="bg-secondary text-secondary-foreground hover:bg-secondary/90" size="lg" asChild>
             <Link href={`/${locale}/auth/signup`}>
               {t('home.cta')}
             </Link>
@@ -94,74 +94,75 @@ export default function HomePage() {
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {featuredEvents.map((event) => (
-              <Card key={event.id} className="overflow-hidden hover:shadow-md transition-shadow">
-                <div className="relative h-40 w-full bg-slate-200">
-                  {/* Здесь будет изображение события */}
-                </div>
-                <CardContent className="p-4">
-                  <h3 className="font-semibold text-lg mb-2">{event.title}</h3>
-                  <p className="text-sm text-muted-foreground mb-3">
-                    {event.shortDescription}
-                  </p>
-                  <div className="flex justify-between text-sm mb-2">
-                    <span>
-                      {locale === 'en' ? 'Yes probability:' : 'Вероятность Да:'} {event.yesProbability}%
-                    </span>
-                    <span>
-                      {locale === 'en' ? 'Until:' : 'До:'} {formatDate(event.endTime)}
-                    </span>
-                  </div>
-                  <div className="w-full bg-slate-200 h-2 rounded-full">
-                    <div
-                      className="bg-blue-500 h-2 rounded-full"
-                      style={{ width: `${event.yesProbability}%` }}
-                    />
-                  </div>
-                  <div className="mt-4">
-                    <Button className="w-full" asChild>
-                      <Link href={`/${locale}/events/${event.id}`}>
-                        {locale === 'en' ? 'Details' : 'Подробнее'}
-                      </Link>
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+
+<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+  {featuredEvents.map((event) => (
+    <Card key={event.id} className="overflow-hidden hover:shadow-md transition-shadow border border-gray-200">
+      <div className="relative h-40 w-full bg-slate-200">
+        {/* Здесь будет изображение события */}
+      </div>
+      <CardContent className="p-4">
+        <h3 className="font-semibold text-lg mb-2">{event.title}</h3>
+        <p className="text-sm text-muted-foreground mb-3">
+          {event.shortDescription}
+        </p>
+        <div className="flex justify-between text-sm mb-2">
+          <span>
+            {locale === 'en' ? 'Yes probability:' : 'Вероятность Да:'} {event.yesProbability}%
+          </span>
+          <span>
+            {locale === 'en' ? 'Until:' : 'До:'} {formatDate(event.endTime)}
+          </span>
+        </div>
+        <div className="w-full bg-gray-200 h-2 rounded-full">
+          <div
+            className="bg-primary h-2 rounded-full"
+            style={{ width: `${event.yesProbability}%` }}
+          />
+        </div>
+        <div className="mt-4">
+          <Button className="w-full bg-secondary text-secondary-foreground hover:bg-secondary/90" asChild>
+            <Link href={`/${locale}/events/${event.id}`}>
+              {locale === 'en' ? 'Details' : 'Подробнее'}
+            </Link>
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  ))}
+</div>
         </div>
       </section>
 
       {/* Как это работает */}
-      <section className="py-16">
-        <div className="container mx-auto px-4">
-          <h2 className="text-2xl font-bold mb-8 text-center">{t('home.howItWorks')}</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="text-center">
-              <div className="bg-blue-100 text-blue-700 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4 text-2xl font-bold">1</div>
-              <h3 className="text-xl font-semibold mb-2">{t('home.step1_title')}</h3>
-              <p className="text-muted-foreground">
-                {t('home.step1_description')}
-              </p>
-            </div>
-            <div className="text-center">
-              <div className="bg-blue-100 text-blue-700 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4 text-2xl font-bold">2</div>
-              <h3 className="text-xl font-semibold mb-2">{t('home.step2_title')}</h3>
-              <p className="text-muted-foreground">
-                {t('home.step2_description')}
-              </p>
-            </div>
-            <div className="text-center">
-              <div className="bg-blue-100 text-blue-700 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4 text-2xl font-bold">3</div>
-              <h3 className="text-xl font-semibold mb-2">{t('home.step3_title')}</h3>
-              <p className="text-muted-foreground">
-                {t('home.step3_description')}
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
+<section className="py-16">
+  <div className="container mx-auto px-4">
+    <h2 className="text-2xl font-bold mb-8 text-center">{t('home.howItWorks')}</h2>
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <div className="text-center">
+        <div className="bg-primary/10 text-primary rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4 text-2xl font-bold">1</div>
+        <h3 className="text-xl font-semibold mb-2">{t('home.step1_title')}</h3>
+        <p className="text-muted-foreground">
+          {t('home.step1_description')}
+        </p>
+      </div>
+      <div className="text-center">
+        <div className="bg-primary/10 text-primary rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4 text-2xl font-bold">2</div>
+        <h3 className="text-xl font-semibold mb-2">{t('home.step2_title')}</h3>
+        <p className="text-muted-foreground">
+          {t('home.step2_description')}
+        </p>
+      </div>
+      <div className="text-center">
+        <div className="bg-primary/10 text-primary rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4 text-2xl font-bold">3</div>
+        <h3 className="text-xl font-semibold mb-2">{t('home.step3_title')}</h3>
+        <p className="text-muted-foreground">
+          {t('home.step3_description')}
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
     </div>
   );
 }

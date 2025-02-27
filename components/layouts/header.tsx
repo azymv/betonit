@@ -106,17 +106,17 @@ export function Header({ locale }: { locale: string }) {
           ) : (
             // Кнопки входа и регистрации
             <div className="flex space-x-2">
-              <Button variant="outline" asChild>
-                <Link href={`/${locale}/auth/signin`}>
-                  {t("nav.signin")}
-                </Link>
-              </Button>
-              <Button asChild>
-                <Link href={`/${locale}/auth/signup`}>
-                  {t("nav.signup")}
-                </Link>
-              </Button>
-            </div>
+    <Button variant="outline" className="border-primary text-primary hover:bg-primary/10" asChild>
+      <Link href={`/${locale}/auth/signin`}>
+        {t("nav.signin")}
+      </Link>
+    </Button>
+    <Button className="bg-secondary text-secondary-foreground hover:bg-secondary/90" asChild>
+      <Link href={`/${locale}/auth/signup`}>
+        {t("nav.signup")}
+      </Link>
+    </Button>
+  </div>
           )}
         </div>
       </div>
