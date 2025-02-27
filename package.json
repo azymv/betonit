@@ -25,6 +25,7 @@
     "framer-motion": "^12.4.7",
     "lucide-react": "^0.476.0",
     "mixpanel-browser": "^2.60.0",
+    "motion": "^12.4.7",
     "next": "14.0.4",
     "next-intl": "^3.26.5",
     "react": "^18.2.0",

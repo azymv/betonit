@@ -6,65 +6,46 @@ import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { useTranslation } from "@/lib/i18n-config";
 import { RainbowButton } from "@/components/ui/rainbow-button";
-import { FlickeringGrid } from "@/components/ui/flickering-grid";
+import { HowItWorksSection } from "@/components/sections/how-it-works";
 
 export default function HomePage() {
-  // Получаем параметры маршрута, включая локаль
   const params = useParams();
   const locale = params.locale as string;
-  
-  // Используем хук локализации для получения функции перевода
   const { t } = useTranslation(locale);
-  
-  // Тестовые события для отображения на главной странице
+
   const featuredEvents = [
     {
       id: "1",
-      title: locale === 'en' ? 
-        "Will Bitcoin exceed $100k by the end of the year?" : 
-        "Будет ли Bitcoin выше $100k к концу года?",
-      shortDescription: locale === 'en' ? 
-        "Make a bet on the future price of Bitcoin" : 
-        "Сделайте ставку на будущую стоимость Bitcoin",
+      title: locale === 'en' ? "Will Bitcoin exceed $100k by the end of the year?" : "Будет ли Bitcoin выше $100k к концу года?",
+      shortDescription: locale === 'en' ? "Make a bet on the future price of Bitcoin" : "Сделайте ставку на будущую стоимость Bitcoin",
       image: "/images/events/placeholder.jpg",
       yesProbability: 65,
-      endTime: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // +30 дней
+      endTime: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
     },
     {
       id: "2",
-      title: locale === 'en' ? 
-        "Who will win the elections?" : 
-        "Кто победит на выборах?",
-      shortDescription: locale === 'en' ? 
-        "Predict political events" : 
-        "Предсказывайте политические события",
+      title: locale === 'en' ? "Who will win the elections?" : "Кто победит на выборах?",
+      shortDescription: locale === 'en' ? "Predict political events" : "Предсказывайте политические события",
       image: "/images/events/placeholder.jpg",
       yesProbability: 48,
-      endTime: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000), // +60 дней
+      endTime: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
     },
     {
       id: "3",
-      title: locale === 'en' ? 
-        "Will Mars colonization begin this year?" : 
-        "Будет ли запущена колонизация Марса в этом году?",
-      shortDescription: locale === 'en' ? 
-        "Space events and launches" : 
-        "Космические события и запуски",
+      title: locale === 'en' ? "Will Mars colonization begin this year?" : "Будет ли запущена колонизация Марса в этом году?",
+      shortDescription: locale === 'en' ? "Space events and launches" : "Космические события и запуски",
       image: "/images/events/placeholder.jpg",
       yesProbability: 15,
-      endTime: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000), // +90 дней
+      endTime: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
     },
   ];
 
-  // Форматирование даты в соответствии с выбранной локалью
   const formatDate = (date: Date) => {
     const options: Intl.DateTimeFormatOptions = {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
     };
-    
-    // Use Intl.DateTimeFormat constructor for consistent formatting
     const formatter = new Intl.DateTimeFormat(locale === "en" ? "en-US" : "ru", options);
     return formatter.format(date);
   };
@@ -100,87 +81,66 @@ export default function HomePage() {
             </Button>
           </div>
 
-
-<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-  {featuredEvents.map((event) => (
-    <Card key={event.id} className="overflow-hidden hover:shadow-md transition-shadow border border-gray-200">
-      <div className="relative h-40 w-full bg-slate-200">
-        {/* Здесь будет изображение события */}
-      </div>
-      <CardContent className="p-4">
-        <h3 className="font-semibold text-lg mb-2">{event.title}</h3>
-        <p className="text-sm text-muted-foreground mb-3">
-          {event.shortDescription}
-        </p>
-        <div className="flex justify-between text-sm mb-2">
-          <span>
-            {locale === 'en' ? 'Yes probability:' : 'Вероятность Да:'} {event.yesProbability}%
-          </span>
-          <span>
-            {locale === 'en' ? 'Until:' : 'До:'} {formatDate(event.endTime)}
-          </span>
-        </div>
-        <div className="w-full bg-gray-200 h-2 rounded-full">
-          <div
-            className="bg-primary h-2 rounded-full"
-            style={{ width: `${event.yesProbability}%` }}
-          />
-        </div>
-        <div className="mt-4">
-          <Button className="w-full bg-secondary text-secondary-foreground hover:bg-secondary/90" asChild>
-            <Link href={`/${locale}/events/${event.id}`}>
-              {locale === 'en' ? 'Details' : 'Подробнее'}
-            </Link>
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  ))}
-</div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {featuredEvents.map((event) => (
+              <Card key={event.id} className="overflow-hidden hover:shadow-md transition-shadow border border-gray-200">
+                <div className="relative h-40 w-full bg-slate-200">
+                  {/* Здесь будет изображение события */}
+                </div>
+                <CardContent className="p-4">
+                  <h3 className="font-semibold text-lg mb-2">{event.title}</h3>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    {event.shortDescription}
+                  </p>
+                  <div className="flex justify-between text-sm mb-2">
+                    <span>
+                      {locale === 'en' ? 'Yes probability:' : 'Вероятность Да:'} {event.yesProbability}%
+                    </span>
+                    <span>
+                      {locale === 'en' ? 'Until:' : 'До:'} {formatDate(event.endTime)}
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 h-2 rounded-full">
+                    <div
+                      className="bg-primary h-2 rounded-full"
+                      style={{ width: `${event.yesProbability}%` }}
+                    />
+                  </div>
+                  <div className="mt-4">
+                    <Button className="w-full bg-secondary text-secondary-foreground hover:bg-secondary/90" asChild>
+                      <Link href={`/${locale}/events/${event.id}`}>
+                        {locale === 'en' ? 'Details' : 'Подробнее'}
+                      </Link>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* Как это работает */}
-      <section className="relative min-h-[600px] w-full bg-background overflow-hidden">
-        <FlickeringGrid
-          className="z-0 absolute inset-0"
-          squareSize={4}
-          gridGap={6}
-          color="#6B7280"
-          maxOpacity={0.5}
-          flickerChance={0.1}
-          height={1600}
-          width={2400}
-        />
-        <div className="relative z-10 py-16">
-          <div className="container mx-auto px-4">
-            <h2 className="text-2xl font-bold mb-8 text-center">{t('home.howItWorks')}</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              <div className="text-center backdrop-blur-sm bg-background/10 rounded-2xl p-6 border border-border/50">
-                <div className="bg-primary/10 text-primary rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4 text-2xl font-bold">1</div>
-                <h3 className="text-xl font-semibold mb-2">{t('home.step1_title')}</h3>
-                <p className="text-muted-foreground">
-                  {t('home.step1_description')}
-                </p>
-              </div>
-              <div className="text-center backdrop-blur-sm bg-background/10 rounded-2xl p-6 border border-border/50">
-                <div className="bg-primary/10 text-primary rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4 text-2xl font-bold">2</div>
-                <h3 className="text-xl font-semibold mb-2">{t('home.step2_title')}</h3>
-                <p className="text-muted-foreground">
-                  {t('home.step2_description')}
-                </p>
-              </div>
-              <div className="text-center backdrop-blur-sm bg-background/10 rounded-2xl p-6 border border-border/50">
-                <div className="bg-primary/10 text-primary rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4 text-2xl font-bold">3</div>
-                <h3 className="text-xl font-semibold mb-2">{t('home.step3_title')}</h3>
-                <p className="text-muted-foreground">
-                  {t('home.step3_description')}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+      <HowItWorksSection 
+        title={t('home.howItWorks')}
+        steps={[
+          {
+            number: 1,
+            title: t('home.step1_title'),
+            description: t('home.step1_description')
+          },
+          {
+            number: 2,
+            title: t('home.step2_title'),
+            description: t('home.step2_description')
+          },
+          {
+            number: 3,
+            title: t('home.step3_title'),
+            description: t('home.step3_description')
+          }
+        ]}
+      />
     </div>
   );
 }
