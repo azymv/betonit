@@ -53,7 +53,7 @@ export default function HomePage() {
   return (
     <div>
       {/* Hero секция */}
-      <section className="hero-section bg-gradient-to-r from-primary to-primary/80 text-white py-16">
+      <section className="hero-section bg-gradient-to-r from-primary to-primary/80 text-white py-32">
         <div className="container mx-auto px-4 text-center">
           <h1 className="text-4xl md:text-5xl font-normal mb-6">
             {t('home.title')}
