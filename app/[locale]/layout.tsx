@@ -2,7 +2,6 @@ import "../globals.css";
 import { Header } from "@/components/layouts/header";
 import { Footer } from "@/components/layouts/footer";
 import { Poppins, Roboto, Libre_Caslon_Text } from 'next/font/google';
-import type { Metadata } from "next";
 
 const poppins = Poppins({
   subsets: ['latin'],
@@ -31,12 +30,7 @@ const libreCaslon = Libre_Caslon_Text({
   adjustFontFallback: true,
 });
 
-export const metadata: Metadata = {
-  title: "BetOnIt - Predict and Win",
-  description: "Make predictions on events and earn coins",
-};
-
-export default function RootLayout({ 
+export default function LocaleLayout({ 
   children,
   params 
 }: { 
