@@ -1,21 +1,23 @@
+// В components/layouts/header.tsx
+
 "use client";
 
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { usePathname } from "next/navigation";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useTranslation } from "@/i18n"; // Импортируем из нашего i18n.ts
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useTranslation, locales } from "@/lib/i18n-config";
 
 // Заглушка для аутентификации
 const useAuth = () => {
-  // Временное решение пока у нас нет аутентификации
   return {
-    user: null, // Измените на объект пользователя, чтобы симулировать вход
+    user: null,
     signOut: async () => {
       console.log("Sign out");
     },
@@ -25,6 +27,16 @@ const useAuth = () => {
 export function Header({ locale }: { locale: string }) {
   const { t } = useTranslation(locale);
   const { user, signOut } = useAuth();
+  const pathname = usePathname();
+
+  // Функция для смены языка с сохранением текущего пути
+  const getLocalePath = (newLocale: string) => {
+    // Удаляем текущую локаль из пути и добавляем новую
+    const pathWithoutLocale = pathname.replace(`/${locale}`, '') || '/';
+    return `/${newLocale}${pathWithoutLocale}`;
+  };
+
+  console.log("Current locale in Header:", locale); // Для отладки
 
   return (
     <header className="border-b">
@@ -55,21 +67,18 @@ export function Header({ locale }: { locale: string }) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem asChild>
-                <Link href={`/en${window.location.pathname.substring(3)}`}>
-                  🇺🇸 {t("language.english")}
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href={`/ru${window.location.pathname.substring(3)}`}>
-                  🇷🇺 {t("language.russian")}
-                </Link>
-              </DropdownMenuItem>
+              {locales.map((l) => (
+                <DropdownMenuItem key={l} asChild>
+                  <Link href={getLocalePath(l)}>
+                    {l === "en" ? "🇺🇸 English" : "🇷🇺 Русский"}
+                  </Link>
+                </DropdownMenuItem>
+              ))}
             </DropdownMenuContent>
           </DropdownMenu>
 
           {user ? (
-            // Аватар пользователя и меню
+            // Аватар пользователя
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Avatar className="h-8 w-8 cursor-pointer">

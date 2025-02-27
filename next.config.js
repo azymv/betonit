@@ -5,15 +5,15 @@ const nextConfig = {
     domains: ['localhost', 'your-supabase-project.supabase.co'],
   },
   experimental: {
-    // Изменяем с boolean на объект
     serverActions: {
-      bodySizeLimit: '2mb' // Можно настроить лимит размера данных
+      bodySizeLimit: '2mb'
     }
   },
-  i18n: {
-    locales: ['en', 'ru'],
-    defaultLocale: 'en',
-  },
+  // Удалите этот блок i18n, так как он конфликтует с App Router
+  // i18n: {
+  //   locales: ['en', 'ru'],
+  //   defaultLocale: 'en',
+  // }
 }
 
 module.exports = nextConfig

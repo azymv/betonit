@@ -1,6 +1,8 @@
-import { defaultLocale } from '../lib/i18n-config';
-import LocalizedHome from './[locale]/page';
+// app/page.tsx
+import { redirect } from 'next/navigation';
+import { defaultLocale } from '@/lib/i18n-config';
 
-export default function Home() {
-  return <LocalizedHome params={{ locale: defaultLocale }} />;
+export default function RootPage() {
+  redirect(`/${defaultLocale}`);
+  return null;
 }
