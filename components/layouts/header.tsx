@@ -1,5 +1,3 @@
-// В components/layouts/header.tsx
-
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -14,10 +12,18 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useTranslation, locales } from "@/lib/i18n-config";
 
-// Заглушка для аутентификации
+// Определяем тип для пользователя
+interface User {
+  id: string;
+  username?: string; // Опциональные свойства
+  avatar_url?: string;
+  email: string;
+}
+
+// Заглушка для аутентификации с правильной типизацией
 const useAuth = () => {
   return {
-    user: null,
+    user: null as User | null, // Явно указываем тип
     signOut: async () => {
       console.log("Sign out");
     },
@@ -35,8 +41,6 @@ export function Header({ locale }: { locale: string }) {
     const pathWithoutLocale = pathname.replace(`/${locale}`, '') || '/';
     return `/${newLocale}${pathWithoutLocale}`;
   };
-
-  console.log("Current locale in Header:", locale); // Для отладки
 
   return (
     <header className="border-b">
