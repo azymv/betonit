@@ -1,22 +1,21 @@
 'use client';
 
-import { Poppins, Libre_Caslon_Text } from "next/font/google";
 import "../globals.css";
 import { Header } from "@/components/layouts/header";
 import { Footer } from "@/components/layouts/footer";
 import { useParams } from "next/navigation";
+import { Poppins, Libre_Caslon_Text } from 'next/font/google';
 
-// Инициализируем шрифты
-const poppins = Poppins({ 
-  subsets: ['latin', 'latin-ext'],
+const poppins = Poppins({
+  subsets: ['latin'],
   weight: ['300', '400', '500', '600', '700'],
-  variable: '--font-poppins'
+  variable: '--font-poppins',
 });
 
 const libreCaslon = Libre_Caslon_Text({
   subsets: ['latin'],
-  weight: ['400'],
-  variable: '--font-libre-caslon'
+  weight: '400',
+  variable: '--font-libre-caslon',
 });
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -24,8 +23,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const locale = params.locale as string;
 
   return (
-    <html lang={locale}>
-      <body className={`${poppins.variable} ${libreCaslon.variable} font-poppins min-h-screen flex flex-col`}>
+    <html lang={locale} className={`${poppins.variable} ${libreCaslon.variable}`}>
+      <body className={`min-h-screen flex flex-col font-poppins`}>
         <Header locale={locale} />
         <main className="flex-grow">{children}</main>
         <Footer locale={locale} />
