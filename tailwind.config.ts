@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import animate from "tailwindcss-animate";
 
 export default {
     darkMode: ["class"],
@@ -57,10 +58,10 @@ export default {
   			sm: 'calc(var(--radius) - 4px)'
   		},
   		backgroundImage: {
-  			'grid-pattern': ',
-  			'grid-pattern-light': '
+  			'grid-pattern': 'radial-gradient(circle, rgba(107, 114, 128, 0.1) 1px, transparent 1px)',
+  			'grid-pattern-light': 'radial-gradient(circle, rgba(107, 114, 128, 0.05) 1px, transparent 1px)'
   		}
   	}
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [animate],
 } satisfies Config;
