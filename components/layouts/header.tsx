@@ -11,6 +11,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useTranslation, locales } from "@/lib/i18n-config";
+import { NavBar } from "@/components/ui/tubelight-navbar";
+import { Home, Trophy, Calendar } from "lucide-react";
 
 // Определяем тип для пользователя
 interface User {
@@ -35,6 +37,24 @@ export function Header({ locale }: { locale: string }) {
   const { user, signOut } = useAuth();
   const pathname = usePathname();
 
+  const navItems = [
+    {
+      name: t("nav.home"),
+      url: `/${locale}`,
+      icon: Home,
+    },
+    {
+      name: t("nav.events"),
+      url: `/${locale}/events`,
+      icon: Calendar,
+    },
+    {
+      name: t("nav.leaderboard"),
+      url: `/${locale}/leaderboard`,
+      icon: Trophy,
+    },
+  ];
+
   // Функция для смены языка с сохранением текущего пути
   const getLocalePath = (newLocale: string) => {
     // Удаляем текущую локаль из пути и добавляем новую
@@ -43,26 +63,15 @@ export function Header({ locale }: { locale: string }) {
   };
 
   return (
-    <header className="border-b">
+    <header className="border-b relative">
       <div className="container mx-auto px-4 py-3 flex justify-between items-center">
-        <div className="flex items-center">
-          <Link href={`/${locale}`} className="text-xl font-bold mr-8">
-            BetOnIt
-          </Link>
-          <nav className="hidden md:flex space-x-6">
-            <Link href={`/${locale}`} className="hover:text-primary">
-              {t("nav.home")}
-            </Link>
-            <Link href={`/${locale}/events`} className="hover:text-primary">
-              {t("nav.events")}
-            </Link>
-            <Link href={`/${locale}/leaderboard`} className="hover:text-primary">
-              {t("nav.leaderboard")}
-            </Link>
-          </nav>
-        </div>
+        <Link href={`/${locale}`} className="text-xl font-bold z-10">
+          BetOnIt
+        </Link>
 
-        <div className="flex items-center space-x-4">
+        <NavBar items={navItems} className="absolute left-1/2 -translate-x-1/2" />
+
+        <div className="flex items-center space-x-4 z-10">
           {/* Переключатель языка */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -106,17 +115,17 @@ export function Header({ locale }: { locale: string }) {
           ) : (
             // Кнопки входа и регистрации
             <div className="flex space-x-2">
-    <Button variant="outline" className="border-primary text-primary hover:bg-primary/10" asChild>
-      <Link href={`/${locale}/auth/signin`}>
-        {t("nav.signin")}
-      </Link>
-    </Button>
-    <Button className="bg-secondary text-secondary-foreground hover:bg-secondary/90" asChild>
-      <Link href={`/${locale}/auth/signup`}>
-        {t("nav.signup")}
-      </Link>
-    </Button>
-  </div>
+              <Button variant="outline" className="border-primary text-primary hover:bg-primary/10" asChild>
+                <Link href={`/${locale}/auth/signin`}>
+                  {t("nav.signin")}
+                </Link>
+              </Button>
+              <Button className="bg-secondary text-secondary-foreground hover:bg-secondary/90" asChild>
+                <Link href={`/${locale}/auth/signup`}>
+                  {t("nav.signup")}
+                </Link>
+              </Button>
+            </div>
           )}
         </div>
       </div>

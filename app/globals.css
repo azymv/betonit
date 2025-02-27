@@ -13,7 +13,6 @@
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 3.9%;
  
-    /* Заменяем цвета на наши новые */
     --primary: 261 100% 63%;
     --primary-foreground: 0 0% 100%;
  
@@ -34,6 +33,12 @@
     --ring: 261 100% 63%;
  
     --radius: 0.5rem;
+ 
+    --color-1: 0 100% 63%;
+    --color-2: 270 100% 63%;
+    --color-3: 210 100% 63%;
+    --color-4: 195 100% 63%;
+    --color-5: 90 100% 63%;
   }
  
   .dark {
@@ -80,5 +85,14 @@
   .hero-section h1 {
     font-family: var(--font-libre-caslon);
     @apply font-normal;
+  }
+}
+ 
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
   }
 }

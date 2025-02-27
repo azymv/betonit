@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { useTranslation } from "@/lib/i18n-config";
+import { RainbowButton } from "@/components/ui/rainbow-button";
+import { FlickeringGrid } from "@/components/ui/flickering-grid";
 
 export default function HomePage() {
   // Получаем параметры маршрута, включая локаль
@@ -56,11 +58,15 @@ export default function HomePage() {
 
   // Форматирование даты в соответствии с выбранной локалью
   const formatDate = (date: Date) => {
-    return date.toLocaleDateString(locale === "en" ? "en-US" : "ru-RU", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
+    const options: Intl.DateTimeFormatOptions = {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    };
+    
+    // Use Intl.DateTimeFormat constructor for consistent formatting
+    const formatter = new Intl.DateTimeFormat(locale === "en" ? "en-US" : "ru", options);
+    return formatter.format(date);
   };
 
   return (
@@ -74,11 +80,11 @@ export default function HomePage() {
           <p className="text-xl mb-8 max-w-2xl mx-auto">
             {t('home.subtitle')}
           </p>
-          <Button className="bg-secondary text-secondary-foreground hover:bg-secondary/90" size="lg" asChild>
-            <Link href={`/${locale}/auth/signup`}>
+          <Link href={`/${locale}/auth/signup`}>
+            <RainbowButton>
               {t('home.cta')}
-            </Link>
-          </Button>
+            </RainbowButton>
+          </Link>
         </div>
       </section>
 
@@ -135,34 +141,46 @@ export default function HomePage() {
       </section>
 
       {/* Как это работает */}
-<section className="py-16">
-  <div className="container mx-auto px-4">
-    <h2 className="text-2xl font-bold mb-8 text-center">{t('home.howItWorks')}</h2>
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-      <div className="text-center">
-        <div className="bg-primary/10 text-primary rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4 text-2xl font-bold">1</div>
-        <h3 className="text-xl font-semibold mb-2">{t('home.step1_title')}</h3>
-        <p className="text-muted-foreground">
-          {t('home.step1_description')}
-        </p>
-      </div>
-      <div className="text-center">
-        <div className="bg-primary/10 text-primary rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4 text-2xl font-bold">2</div>
-        <h3 className="text-xl font-semibold mb-2">{t('home.step2_title')}</h3>
-        <p className="text-muted-foreground">
-          {t('home.step2_description')}
-        </p>
-      </div>
-      <div className="text-center">
-        <div className="bg-primary/10 text-primary rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4 text-2xl font-bold">3</div>
-        <h3 className="text-xl font-semibold mb-2">{t('home.step3_title')}</h3>
-        <p className="text-muted-foreground">
-          {t('home.step3_description')}
-        </p>
-      </div>
-    </div>
-  </div>
-</section>
+      <section className="relative min-h-[600px] w-full bg-background overflow-hidden">
+        <FlickeringGrid
+          className="z-0 absolute inset-0"
+          squareSize={4}
+          gridGap={6}
+          color="#6B7280"
+          maxOpacity={0.5}
+          flickerChance={0.1}
+          height={1600}
+          width={2400}
+        />
+        <div className="relative z-10 py-16">
+          <div className="container mx-auto px-4">
+            <h2 className="text-2xl font-bold mb-8 text-center">{t('home.howItWorks')}</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="text-center backdrop-blur-sm bg-background/10 rounded-2xl p-6 border border-border/50">
+                <div className="bg-primary/10 text-primary rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4 text-2xl font-bold">1</div>
+                <h3 className="text-xl font-semibold mb-2">{t('home.step1_title')}</h3>
+                <p className="text-muted-foreground">
+                  {t('home.step1_description')}
+                </p>
+              </div>
+              <div className="text-center backdrop-blur-sm bg-background/10 rounded-2xl p-6 border border-border/50">
+                <div className="bg-primary/10 text-primary rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4 text-2xl font-bold">2</div>
+                <h3 className="text-xl font-semibold mb-2">{t('home.step2_title')}</h3>
+                <p className="text-muted-foreground">
+                  {t('home.step2_description')}
+                </p>
+              </div>
+              <div className="text-center backdrop-blur-sm bg-background/10 rounded-2xl p-6 border border-border/50">
+                <div className="bg-primary/10 text-primary rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4 text-2xl font-bold">3</div>
+                <h3 className="text-xl font-semibold mb-2">{t('home.step3_title')}</h3>
+                <p className="text-muted-foreground">
+                  {t('home.step3_description')}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
