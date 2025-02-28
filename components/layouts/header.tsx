@@ -7,34 +7,18 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useTranslation, locales } from "@/lib/i18n-config";
 import { NavBar } from "@/components/ui/tubelight-navbar";
-import { Home, Trophy, Calendar } from "lucide-react";
-
-// Определяем тип для пользователя
-interface User {
-  id: string;
-  username?: string; // Опциональные свойства
-  avatar_url?: string;
-  email: string;
-}
-
-// Заглушка для аутентификации с правильной типизацией
-const useAuth = () => {
-  return {
-    user: null as User | null, // Явно указываем тип
-    signOut: async () => {
-      console.log("Sign out");
-    },
-  };
-};
+import { Home, Trophy, Calendar, LogOut } from "lucide-react";
+import { useAuth } from "@/lib/context/auth-context";
 
 export function Header({ locale }: { locale: string }) {
   const { t } = useTranslation(locale);
-  const { user, signOut } = useAuth();
+  const { user, isLoading, signOut } = useAuth();
   const pathname = usePathname();
 
   const navItems = [
@@ -60,6 +44,11 @@ export function Header({ locale }: { locale: string }) {
     // Удаляем текущую локаль из пути и добавляем новую
     const pathWithoutLocale = pathname.replace(`/${locale}`, '') || '/';
     return `/${newLocale}${pathWithoutLocale}`;
+  };
+
+  // Обработчик выхода
+  const handleSignOut = async () => {
+    await signOut();
   };
 
   return (
@@ -90,14 +79,22 @@ export function Header({ locale }: { locale: string }) {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {user ? (
+          {isLoading ? (
+            // Показываем заглушку во время загрузки
+            <div className="h-9 w-20 bg-slate-200 animate-pulse rounded" />
+          ) : user ? (
             // Аватар пользователя
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Avatar className="h-8 w-8 cursor-pointer">
-                  <AvatarImage src={user.avatar_url || ""} alt={user.username || "User"} />
+                  <AvatarImage 
+                    src={user.user_metadata?.avatar_url || ""} 
+                    alt={user.user_metadata?.username || "User"} 
+                  />
                   <AvatarFallback>
-                    {user.username ? user.username[0].toUpperCase() : "U"}
+                    {user.user_metadata?.username 
+                      ? user.user_metadata.username[0].toUpperCase() 
+                      : user.email ? user.email[0].toUpperCase() : "U"}
                   </AvatarFallback>
                 </Avatar>
               </DropdownMenuTrigger>
@@ -107,7 +104,19 @@ export function Header({ locale }: { locale: string }) {
                     {t("nav.profile")}
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => signOut()}>
+                <DropdownMenuItem asChild>
+                  <Link href={`/${locale}/profile/bets`}>
+                    {t("profile.myBets")}
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href={`/${locale}/profile/balance`}>
+                    {t("profile.balance")}
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleSignOut} className="text-red-500">
+                  <LogOut className="h-4 w-4 mr-2" />
                   {t("nav.signout")}
                 </DropdownMenuItem>
               </DropdownMenuContent>

@@ -19,6 +19,29 @@ import Link from 'next/link';
 import { placeBet } from '@/lib/actions/bet-actions';
 import { Event } from '@/lib/types/event';
 
+// Define a type for the debug information
+interface DebugInfo {
+  auth?: {
+    user: { id: string; email: string | undefined } | null;
+    isAuthLoading: boolean;
+  };
+  fetchStarted?: boolean;
+  noUser?: boolean;
+  fetchingEvent?: boolean;
+  eventResult?: {
+    data: boolean;
+    error: string | null;
+  };
+  fetchingBalance?: boolean;
+  balanceResult?: {
+    data: number | null;
+    error: string | null;
+  };
+  fetchSuccess?: boolean;
+  fetchError?: string;
+  fetchCompleted?: boolean;
+}
+
 export default function PlaceBetPage() {
   const params = useParams();
   const { locale, eventId } = params;
@@ -29,6 +52,9 @@ export default function PlaceBetPage() {
   const { t } = useTranslation(localeStr);
   const router = useRouter();
   const { user, isLoading: isAuthLoading } = useAuth();
+
+  // Добавляем состояние для отладочной информации
+  const [debugInfo, setDebugInfo] = useState<DebugInfo>({});
 
   const [event, setEvent] = useState<Event | null>(null);
   const [amount, setAmount] = useState<number>(10);
@@ -45,13 +71,33 @@ export default function PlaceBetPage() {
   // Коэффициент для MVP (фиксированный 2.0)
   const ODDS = 2.0;
 
+  // ОТЛАДКА: Выводим текущее состояние аутентификации
+  useEffect(() => {
+    console.log('Auth state:', { user, isAuthLoading });
+    
+    // Сохраняем для отображения на странице
+    setDebugInfo((prev: DebugInfo) => ({
+      ...prev, 
+      auth: { 
+        user: user ? { id: user.id, email: user.email } : null,
+        isAuthLoading
+      }
+    }));
+  }, [user, isAuthLoading]);
+
   // Получение данных события и баланса пользователя
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
+      setDebugInfo((prev: DebugInfo) => ({ ...prev, fetchStarted: true }));
+      
       try {
         if (!user) {
+          // Обновляем отладочную информацию
+          setDebugInfo((prev: DebugInfo) => ({ ...prev, noUser: true }));
+          
           // Если пользователь не авторизован, перенаправляем на страницу входа
+          console.log('User not authenticated, redirecting to sign in');
           router.push(`/${localeStr}/auth/signin?redirectTo=/${localeStr}/events/${eventIdStr}/bet?prediction=${prediction ? 'yes' : 'no'}`);
           return;
         }
@@ -59,13 +105,22 @@ export default function PlaceBetPage() {
         const supabase = createClientComponentClient<Database>();
         
         // Получаем событие
+        setDebugInfo((prev: DebugInfo) => ({ ...prev, fetchingEvent: true }));
+        
         const { data: eventData, error: eventError } = await supabase
           .from('events')
           .select('*')
           .eq('id', eventIdStr)
           .single();
         
+        // Обновляем отладочную информацию
+        setDebugInfo((prev: DebugInfo) => ({ 
+          ...prev, 
+          eventResult: { data: eventData ? true : false, error: eventError ? eventError.message : null }
+        }));
+        
         if (eventError) {
+          console.error('Error fetching event:', eventError);
           throw eventError;
         }
         
@@ -81,6 +136,8 @@ export default function PlaceBetPage() {
         setEvent(eventData as Event);
         
         // Получаем баланс пользователя
+        setDebugInfo((prev: DebugInfo) => ({ ...prev, fetchingBalance: true }));
+        
         const { data: balanceData, error: balanceError } = await supabase
           .from('balances')
           .select('amount')
@@ -88,21 +145,43 @@ export default function PlaceBetPage() {
           .eq('currency', 'coins')
           .single();
         
+        // Обновляем отладочную информацию
+        setDebugInfo((prev: DebugInfo) => ({ 
+          ...prev, 
+          balanceResult: { 
+            data: balanceData ? balanceData.amount : null, 
+            error: balanceError ? balanceError.message : null 
+          }
+        }));
+        
         if (balanceError && balanceError.code !== 'PGRST116') {
+          console.error('Error fetching balance:', balanceError);
           throw balanceError;
         }
         
         setBalance(balanceData?.amount || 0);
+        
+        // Все данные успешно загружены
+        setDebugInfo((prev: DebugInfo) => ({ ...prev, fetchSuccess: true }));
       } catch (err) {
         console.error('Error fetching data:', err);
         setError(err instanceof Error ? err.message : t('errors.dataLoadError'));
+        
+        // Обновляем отладочную информацию
+        setDebugInfo((prev: DebugInfo) => ({ 
+          ...prev, 
+          fetchError: err instanceof Error ? err.message : String(err) 
+        }));
       } finally {
         setIsLoading(false);
+        setDebugInfo((prev: DebugInfo) => ({ ...prev, fetchCompleted: true }));
       }
     };
     
-    fetchData();
-  }, [eventIdStr, user, localeStr, router, prediction, t]);
+    if (user !== null || !isAuthLoading) {
+      fetchData();
+    }
+  }, [eventIdStr, user, isAuthLoading, localeStr, router, prediction, t]);
 
   // Обработка изменения суммы ставки
   const handleAmountChange = (value: string) => {
@@ -174,6 +253,55 @@ export default function PlaceBetPage() {
     return num.toLocaleString(localeStr === 'en' ? 'en-US' : 'ru-RU');
   };
 
+  // ОТЛАДКА: Если возникает ошибка или загрузка слишком долгая, показываем отладочную панель
+  if ((isLoading && Object.keys(debugInfo).length > 0) || error) {
+    return (
+      <div className="container max-w-lg mx-auto px-4 py-8">
+        <Button variant="ghost" className="mb-4" onClick={() => router.back()}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          {t('common.back')}
+        </Button>
+        
+        <Card>
+          <CardHeader>
+            <CardTitle>Отладочная информация</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {error && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Ошибка</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+            
+            <div className="bg-slate-100 p-4 rounded mb-4 overflow-auto">
+              <pre className="text-xs">
+                {JSON.stringify(debugInfo, null, 2)}
+              </pre>
+            </div>
+            
+            <p className="text-sm text-gray-500 mb-2">Состояние:</p>
+            <ul className="text-sm space-y-1 mb-4">
+              <li>isLoading: {isLoading ? 'true' : 'false'}</li>
+              <li>isAuthLoading: {isAuthLoading ? 'true' : 'false'}</li>
+              <li>User: {user ? user.email : 'не авторизован'}</li>
+              <li>Event: {event ? 'загружено' : 'не загружено'}</li>
+              <li>Balance: {balance}</li>
+            </ul>
+          </CardContent>
+          <CardFooter>
+            <Button asChild className="w-full">
+              <Link href={`/${localeStr}/events/${eventIdStr}`}>
+                Вернуться к событию
+              </Link>
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+    );
+  }
+
   // Отображение загрузки
   if (isLoading || isAuthLoading) {
     return (
@@ -192,38 +320,6 @@ export default function PlaceBetPage() {
           </CardContent>
           <CardFooter>
             <Skeleton className="h-10 w-full" />
-          </CardFooter>
-        </Card>
-      </div>
-    );
-  }
-
-  // Отображение ошибки
-  if (error && !successMessage) {
-    return (
-      <div className="container max-w-lg mx-auto px-4 py-8">
-        <Button variant="ghost" className="mb-4" onClick={() => router.back()}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          {t('common.back')}
-        </Button>
-        
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('events.placeBet')}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Alert variant="destructive" className="mb-4">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>{t('errors.title')}</AlertTitle>
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          </CardContent>
-          <CardFooter>
-            <Button asChild className="w-full">
-              <Link href={`/${localeStr}/events/${eventIdStr}`}>
-                {t('events.backToEvent')}
-              </Link>
-            </Button>
           </CardFooter>
         </Card>
       </div>
