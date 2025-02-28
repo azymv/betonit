@@ -104,7 +104,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     language?: string;
   }) => {
     try {
-      // First, sign up the user with Supabase Auth
+      // First, just sign up the user with Supabase Auth
+      // We'll create the profile in the users table via the auth callback
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -122,42 +123,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error };
       }
       
-      // If authentication was successful, create a user profile in the users table
+      // Track the sign-up event
       if (data.user) {
-        // Generate a referral code (simple implementation)
-        const referralCode = Math.random().toString(36).substring(2, 10).toUpperCase();
-        
-        // Create user record in the users table
-        const { error: profileError } = await supabase
-          .from('users')
-          .insert({
-            id: data.user.id,
-            email: data.user.email as string,
-            username: userData?.username,
-            full_name: userData?.full_name,
-            language: userData?.language || 'en',
-            referral_code: referralCode,
-          });
-        
-        if (profileError) {
-          console.error('Error creating user profile:', profileError);
-          return { error: profileError };
-        }
-        
-        // Also create an initial balance for the user
-        const { error: balanceError } = await supabase
-          .from('balances')
-          .insert({
-            user_id: data.user.id,
-            amount: 1000, // Initial balance of 1000 coins
-            currency: 'coins',
-          });
-        
-        if (balanceError) {
-          console.error('Error creating initial balance:', balanceError);
-          // Not returning an error here as the user is still created
-        }
-        
         track(ANALYTICS_EVENTS.SIGN_UP, { 
           email, 
           username: userData?.username,
