@@ -11,6 +11,19 @@ import { Badge } from '@/components/ui/badge';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Database } from '@/lib/types/supabase';
 import { Loader2, User, Wallet, ListTodo } from 'lucide-react';
+import { Bet } from '@/lib/types/event';
+
+// Define a type for the events data returned from the join query
+interface EventJoinResult {
+  title: string;
+  status: string;
+  result: boolean | null;
+}
+
+// Define a type for bets with their related events
+interface BetWithEvent extends Bet {
+  events?: EventJoinResult;
+}
 
 export default function ProfilePage() {
   const params = useParams();
@@ -20,8 +33,10 @@ export default function ProfilePage() {
   const { user, isLoading: isAuthLoading } = useAuth();
   
   const [balance, setBalance] = useState<number | null>(null);
-  const [userBets, setUserBets] = useState<any[]>([]);
+  const [userBets, setUserBets] = useState<BetWithEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  // We're keeping the error state for potential future UI error handling
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [error, setError] = useState<string | null>(null);
   
   useEffect(() => {
@@ -98,7 +113,7 @@ export default function ProfilePage() {
   };
   
   // Получаем статус ставки с правильным форматом
-  const getBetStatusBadge = (bet: any) => {
+  const getBetStatusBadge = (bet: BetWithEvent) => {
     const event = bet.events;
     
     if (!event) return null;
