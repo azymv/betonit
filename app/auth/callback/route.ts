@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL(`/${defaultLocale}/auth/error`, requestUrl.origin));
   }
 
-  // Redirect to home page after successful authentication
-  console.log("Auth callback completed, redirecting to home");
-  return NextResponse.redirect(new URL(`/${defaultLocale}`, requestUrl.origin));
+  // Redirect to success page after verification
+  console.log("Auth callback completed, redirecting to success page");
+  return NextResponse.redirect(new URL(`/${defaultLocale}/auth/success`, requestUrl.origin));
 }

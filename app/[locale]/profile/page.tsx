@@ -1,254 +1,244 @@
-"use client";
+'use client';
 
-import { Button } from "@/components/ui/button";
-import Link from "next/link";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { useTranslation } from '@/lib/i18n-config';
+import { useAuth } from '@/lib/context/auth-context';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { Database } from '@/lib/types/supabase';
+import { Loader2, User, Wallet, ListTodo } from 'lucide-react';
 
-export default function ProfilePage({
-  params,
-}: {
-  params: { locale: string };
-}) {
-  const { locale } = params;
+export default function ProfilePage() {
+  const params = useParams();
+  const localeStr = typeof params.locale === 'string' ? params.locale : 'en';
+  const { t } = useTranslation(localeStr);
+  const router = useRouter();
+  const { user, isLoading: isAuthLoading } = useAuth();
   
-  // Тестовые данные пользователя
-  const user = {
-    id: "1",
-    username: "user123",
-    email: "user@example.com",
-    avatarUrl: null,
-    joinedAt: new Date("2024-01-15"),
-    language: "ru",
-    balance: 500,
-    totalBets: 12,
-    wonBets: 8,
-    lostBets: 4,
-  };
+  const [balance, setBalance] = useState<number | null>(null);
+  const [userBets, setUserBets] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
-  // Тестовые данные последних ставок
-  const recentBets = [
-    {
-      id: "1",
-      eventTitle: "Будет ли Bitcoin выше $100k к концу года?",
-      prediction: true, // Да
-      amount: 50,
-      status: "active",
-      createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 дня назад
-    },
-    {
-      id: "2",
-      eventTitle: "Кто победит на выборах?",
-      prediction: false, // Нет
-      amount: 100,
-      status: "won",
-      createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000), // 10 дней назад
-    },
-    {
-      id: "3",
-      eventTitle: "Выйдет ли новая версия iOS до конца квартала?",
-      prediction: true, // Да
-      amount: 75,
-      status: "lost",
-      createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000), // 15 дней назад
-    },
-  ];
+  useEffect(() => {
+    const loadProfileData = async () => {
+      if (!user) {
+        // Если пользователь не авторизован, перенаправляем на страницу входа
+        router.push(`/${localeStr}/auth/signin?redirectTo=/${localeStr}/profile`);
+        return;
+      }
+      
+      setIsLoading(true);
+      try {
+        const supabase = createClientComponentClient<Database>();
+        
+        // Получаем баланс пользователя
+        const { data: balanceData, error: balanceError } = await supabase
+          .from('balances')
+          .select('amount')
+          .eq('user_id', user.id)
+          .eq('currency', 'coins')
+          .single();
+          
+        if (balanceError && balanceError.code !== 'PGRST116') {
+          throw balanceError;
+        }
+        
+        setBalance(balanceData?.amount || 0);
+        
+        // Получаем ставки пользователя
+        const { data: betsData, error: betsError } = await supabase
+          .from('bets')
+          .select(`
+            *,
+            events:event_id (
+              title,
+              status,
+              result
+            )
+          `)
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+          
+        if (betsError) {
+          throw betsError;
+        }
+        
+        setUserBets(betsData || []);
+      } catch (err) {
+        console.error('Error loading profile data:', err);
+        setError(err instanceof Error ? err.message : 'Ошибка загрузки данных профиля');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadProfileData();
+  }, [user, router, localeStr]);
   
-  // Форматирование даты
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString(locale === "en" ? "en-US" : "ru-RU", {
+  // Форматируем дату
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString(localeStr === "en" ? "en-US" : "ru-RU", {
       day: "numeric",
       month: "short",
       year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
     });
   };
   
-  // Перевод статуса ставки
-  const betStatusTranslation: Record<string, string> = {
-    pending: "В ожидании",
-    active: "Активна",
-    won: "Выиграна",
-    lost: "Проиграна",
-    cancelled: "Отменена",
+  // Форматируем число
+  const formatNumber = (num: number) => {
+    return num.toLocaleString(localeStr === 'en' ? 'en-US' : 'ru-RU');
   };
   
-  // Цвет статуса ставки
-  const betStatusColors: Record<string, string> = {
-    pending: "bg-yellow-100 text-yellow-800",
-    active: "bg-blue-100 text-blue-800",
-    won: "bg-green-100 text-green-800",
-    lost: "bg-red-100 text-red-800",
-    cancelled: "bg-gray-100 text-gray-800",
+  // Получаем статус ставки с правильным форматом
+  const getBetStatusBadge = (bet: any) => {
+    const event = bet.events;
+    
+    if (!event) return null;
+    
+    if (bet.status === 'won') {
+      return <Badge className="bg-green-500">{t('profile.bets.won')}</Badge>;
+    } else if (bet.status === 'lost') {
+      return <Badge variant="destructive">{t('profile.bets.lost')}</Badge>;
+    } else if (event.status === 'resolved') {
+      return <Badge variant="outline">{t('profile.bets.waiting')}</Badge>;
+    } else {
+      return <Badge variant="secondary">{t('profile.bets.active')}</Badge>;
+    }
   };
-
+  
+  if (isLoading || isAuthLoading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <Skeleton className="h-10 w-48 mb-8" />
+        
+        <div className="grid gap-8">
+          <Skeleton className="h-40 w-full rounded-lg" />
+          <Skeleton className="h-80 w-full rounded-lg" />
+        </div>
+      </div>
+    );
+  }
+  
+  if (!user) {
+    return null; // Перенаправление на страницу входа уже должно было произойти
+  }
+  
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8">Профиль</h1>
+      <h1 className="text-3xl font-bold mb-8">{t('profile.title')}</h1>
       
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Основная информация о пользователе */}
-        <div className="col-span-1">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-xl">Профиль</CardTitle>
-              <Button variant="outline" size="sm" asChild>
-                <Link href={`/${locale}/profile/settings`}>
-                  Настройки
-                </Link>
-              </Button>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center space-x-4">
-                <div className="h-16 w-16 rounded-full bg-blue-100 flex items-center justify-center">
-                  <span className="text-blue-700 text-xl font-semibold">
-                    {user.username[0].toUpperCase()}
-                  </span>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-lg">{user.username}</h3>
-                  <p className="text-sm text-muted-foreground">{user.email}</p>
-                </div>
+      <div className="grid gap-8">
+        {/* Карточка профиля */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2">
+              <User className="h-5 w-5" />
+              {t('profile.personalInfo')}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-muted-foreground">{t('profile.email')}</p>
+                <p className="font-medium">{user.email}</p>
               </div>
-              
-              <div className="border-t pt-4">
-                <p className="text-sm text-muted-foreground">
-                  Дата регистрации: {formatDate(user.joinedAt)}
+              <div>
+                <p className="text-sm text-muted-foreground">{t('profile.username')}</p>
+                <p className="font-medium">{user.user_metadata?.username || t('profile.notSet')}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">{t('profile.fullName')}</p>
+                <p className="font-medium">{user.user_metadata?.full_name || t('profile.notSet')}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">{t('profile.balance')}</p>
+                <p className="font-medium text-xl text-primary">
+                  {formatNumber(balance || 0)} {t('common.coins')}
                 </p>
               </div>
-            </CardContent>
-          </Card>
-          
-          {/* Баланс пользователя */}
-          <Card className="mt-6">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-xl">Баланс</CardTitle>
-              <Button variant="outline" size="sm" asChild>
-                <Link href={`/${locale}/profile/balance`}>
-                  Управление
-                </Link>
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center p-4">
-                <p className="text-muted-foreground mb-1">Текущий баланс</p>
-                <p className="text-3xl font-bold">{user.balance} <span className="text-muted-foreground text-base font-normal">монет</span></p>
-              </div>
-            </CardContent>
-          </Card>
-          
-          {/* Статистика ставок */}
-          <Card className="mt-6">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-xl">Статистика</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-3 gap-4 text-center">
-                <div>
-                  <p className="text-2xl font-bold">{user.totalBets}</p>
-                  <p className="text-sm text-muted-foreground">Всего ставок</p>
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-green-600">{user.wonBets}</p>
-                  <p className="text-sm text-muted-foreground">Побед</p>
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-red-600">{user.lostBets}</p>
-                  <p className="text-sm text-muted-foreground">Поражений</p>
-                </div>
-              </div>
-              
-              <div className="mt-4">
-                <p className="text-sm text-muted-foreground mb-1">Точность прогнозов</p>
-                <div className="w-full bg-slate-200 h-2 rounded-full">
-                  <div
-                    className="bg-green-500 h-2 rounded-full"
-                    style={{ width: `${(user.wonBets / user.totalBets) * 100}%` }}
-                  />
-                </div>
-                <p className="text-sm mt-1">
-                  {Math.round((user.wonBets / user.totalBets) * 100)}%
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
         
-        {/* Правая колонка - Последние ставки и другая информация */}
-        <div className="col-span-1 lg:col-span-2">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-xl">Последние ставки</CardTitle>
-              <Button variant="outline" size="sm" asChild>
-                <Link href={`/${locale}/profile/bets`}>
-                  Все ставки
-                </Link>
-              </Button>
-            </CardHeader>
-            <CardContent>
-              {recentBets.length > 0 ? (
-                <div className="space-y-4">
-                  {recentBets.map((bet) => (
-                    <div key={bet.id} className="border rounded-lg p-4">
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <h3 className="font-medium">{bet.eventTitle}</h3>
-                          <p className="text-sm text-muted-foreground">
-                            {formatDate(bet.createdAt)}
-                          </p>
-                        </div>
-                        <span className={`text-xs px-2 py-1 rounded ${betStatusColors[bet.status]}`}>
-                          {betStatusTranslation[bet.status]}
-                        </span>
-                      </div>
-                      <div className="mt-2 flex justify-between">
-                        <span>
-                          {bet.prediction ? "Да" : "Нет"} • {bet.amount} монет
-                        </span>
-                        <Button variant="ghost" size="sm" asChild>
-                          <Link href={`/${locale}/events/${bet.id}`}>
-                            Подробнее
-                          </Link>
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground">У вас пока нет ставок</p>
-                  <Button className="mt-4" asChild>
-                    <Link href={`/${locale}/events`}>
-                      Начать делать ставки
-                    </Link>
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+        {/* Вкладки */}
+        <Tabs defaultValue="bets">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="bets" className="flex items-center gap-2">
+              <ListTodo className="h-4 w-4" />
+              {t('profile.myBets')}
+            </TabsTrigger>
+            <TabsTrigger value="transactions" className="flex items-center gap-2">
+              <Wallet className="h-4 w-4" />
+              {t('profile.transactions')}
+            </TabsTrigger>
+          </TabsList>
           
-          {/* Реферальная программа */}
-          <Card className="mt-6">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-xl">Пригласите друзей</CardTitle>
-              <Button variant="outline" size="sm" asChild>
-                <Link href={`/${locale}/referral`}>
-                  Подробнее
-                </Link>
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <h3 className="font-semibold mb-2">Реферальная программа</h3>
-                <p className="text-sm mb-4">
-                  Пригласите друзей и получите 100 монет за каждого зарегистрировавшегося пользователя. 
-                  Ваш друг также получит 50 бонусных монет при регистрации.
-                </p>
-                <Button className="w-full">
-                  Получить реферальную ссылку
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+          {/* Вкладка со ставками */}
+          <TabsContent value="bets">
+            <Card>
+              <CardHeader>
+                <CardTitle>{t('profile.betsHistory')}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {userBets.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground">{t('profile.noBets')}</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {userBets.map((bet) => (
+                      <div key={bet.id} className="border p-4 rounded-lg">
+                        <div className="flex justify-between mb-2">
+                          <div>
+                            <h3 className="font-medium">{bet.events?.title}</h3>
+                            <p className="text-sm text-muted-foreground">
+                              {t('events.yourBet')}: {bet.prediction ? t('common.yes') : t('common.no')}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            {getBetStatusBadge(bet)}
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {formatDate(bet.created_at)}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span>{t('events.amount')}: {formatNumber(bet.amount)} {t('common.coins')}</span>
+                          <span>
+                            {t('events.potentialWinnings')}: {formatNumber(bet.potential_payout)} {t('common.coins')}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          {/* Вкладка с транзакциями (будет реализована позже) */}
+          <TabsContent value="transactions">
+            <Card>
+              <CardHeader>
+                <CardTitle>{t('profile.transactionsHistory')}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+                  <p className="text-muted-foreground">{t('profile.comingSoon')}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

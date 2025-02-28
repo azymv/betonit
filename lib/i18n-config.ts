@@ -54,6 +54,10 @@ export function getTranslation(locale: string, key: string): string {
 'auth.error.message': 'We couldn\'t complete the authentication process. This may be due to an expired link or a server issue.',
 'auth.error.tryAgain': 'Try Again',
 
+// Auth success
+'auth.success.title': 'Account Verified!',
+'auth.success.description': 'Your email has been successfully verified. You can now sign in to your account.',
+
       // Home page
       'home.title': 'Predict. Win. Earn.',
       'home.subtitle': 'Make predictions on events and earn coins',
@@ -82,6 +86,7 @@ export function getTranslation(locale: string, key: string): string {
       'events.status.active': 'Active',
       'events.status.resolved': 'Resolved',
       'events.status.cancelled': 'Cancelled',
+      'events.status.label': 'Status',
       'events.ends': 'Ends',
       'events.yesPercent': 'Yes',
       'events.viewDetails': 'View Details',
@@ -98,7 +103,29 @@ export function getTranslation(locale: string, key: string): string {
       'events.noEventsFound': 'No events found',
       'events.tryDifferentFilters': 'Try changing your filters',
       'events.imageComingSoon': 'Image coming soon',
+      'events.categoriesFilter': 'Categories',
+      'events.details': 'Event Details',
+      'events.startDate': 'Start Date',
+      'events.endDate': 'End Date',
+      'events.totalBets': 'Total Bets',
+      'events.placeBet': 'Place a Bet',
+      'events.alreadyBet': 'You already placed a bet',
+      'events.yourBet': 'Your bet',
+      'events.amount': 'Amount',
+      'events.odds': 'Odds',
+      'events.minBet': 'Minimum bet',
+      'events.maxBet': 'Maximum bet',
+      'events.yourPrediction': 'Your prediction',
+      'events.currentBalance': 'Current balance',
+      'events.betAmount': 'Bet amount',
+      'events.potentialWinnings': 'Potential winnings',
+      'events.placeBetButton': 'Place Bet',
+      'events.betSuccess': 'Bet Placed Successfully',
+      'events.betPlacedSuccess': 'Your bet has been successfully placed!',
+      'events.backToEvent': 'Back to Event',
       
+      
+      // Common
       // Common
       'common.loading': 'Loading...',
       'common.search': 'Search',
@@ -110,9 +137,36 @@ export function getTranslation(locale: string, key: string): string {
       'common.edit': 'Edit',
       'common.continue': 'Continue',
       'common.back': 'Back',
+      'common.coins': 'coins',
+      'common.processing': 'Processing...',
       
       // Errors
       'errors.failedToLoadEvents': 'Failed to load events',
+      'errors.eventNotFound': 'Event not found',
+      'errors.eventNotActive': 'Event is not active',
+      'errors.dataLoadError': 'Failed to load data',
+      'errors.insufficientBalance': 'Insufficient balance',
+      'errors.betError': 'Failed to place bet',
+      'errors.title': 'Error',
+      
+      // Profile
+      'profile.title': 'My Profile',
+      'profile.personalInfo': 'Personal Information',
+      'profile.email': 'Email',
+      'profile.username': 'Username',
+      'profile.fullName': 'Full Name',
+      'profile.balance': 'Balance',
+      'profile.myBets': 'My Bets',
+      'profile.transactions': 'Transactions',
+      'profile.betsHistory': 'Betting History',
+      'profile.transactionsHistory': 'Transaction History',
+      'profile.notSet': 'Not set',
+      'profile.noBets': 'You haven\'t placed any bets yet',
+      'profile.comingSoon': 'This feature is coming soon',
+      'profile.bets.won': 'Won',
+      'profile.bets.lost': 'Lost',
+      'profile.bets.waiting': 'Pending Resolution',
+      'profile.bets.active': 'Active',
       
       // Footer
       'footer.tagline': 'Predict and earn',
@@ -173,6 +227,10 @@ export function getTranslation(locale: string, key: string): string {
       'auth.error.description': 'Возникла проблема с вашей аутентификацией',
       'auth.error.message': 'Мы не смогли завершить процесс аутентификации. Это может быть связано с истекшей ссылкой или проблемой на сервере.',
       'auth.error.tryAgain': 'Попробовать снова',
+
+      // Auth success
+      'auth.success.title': 'Аккаунт подтвержден!',
+      'auth.success.description': 'Ваш email успешно подтвержден. Теперь вы можете войти в свой аккаунт.',
       
       // Home page
       'home.title': 'Предсказывай. Побеждай. Зарабатывай.',
@@ -189,6 +247,7 @@ export function getTranslation(locale: string, key: string): string {
       'home.step3_description': 'Если твой прогноз верен, ты получишь выигрыш автоматически после исхода события',
       
       // Events
+      // Events
       'events.allEvents': 'Все события',
       'events.categories.politics': 'Политика',
       'events.categories.cryptocurrency': 'Криптовалюта',
@@ -202,6 +261,7 @@ export function getTranslation(locale: string, key: string): string {
       'events.status.active': 'Активные',
       'events.status.resolved': 'Завершенные',
       'events.status.cancelled': 'Отмененные',
+      'events.status.label': 'Статус',
       'events.ends': 'Завершается',
       'events.yesPercent': 'Да',
       'events.viewDetails': 'Подробнее',
@@ -218,6 +278,26 @@ export function getTranslation(locale: string, key: string): string {
       'events.noEventsFound': 'События не найдены',
       'events.tryDifferentFilters': 'Попробуйте изменить фильтры',
       'events.imageComingSoon': 'Изображение скоро появится',
+      'events.categoriesFilter': 'Категории',
+      'events.details': 'Детали события',
+      'events.startDate': 'Дата начала',
+      'events.endDate': 'Дата окончания',
+      'events.totalBets': 'Всего ставок',
+      'events.placeBet': 'Сделать ставку',
+      'events.alreadyBet': 'Вы уже сделали ставку',
+      'events.yourBet': 'Ваша ставка',
+      'events.amount': 'Сумма',
+      'events.odds': 'Коэффициент',
+      'events.minBet': 'Минимальная ставка',
+      'events.maxBet': 'Максимальная ставка',
+      'events.yourPrediction': 'Ваш прогноз',
+      'events.currentBalance': 'Текущий баланс',
+      'events.betAmount': 'Сумма ставки',
+      'events.potentialWinnings': 'Потенциальный выигрыш',
+      'events.placeBetButton': 'Разместить ставку',
+      'events.betSuccess': 'Ставка успешно размещена',
+      'events.betPlacedSuccess': 'Ваша ставка была успешно размещена!',
+      'events.backToEvent': 'Вернуться к событию',
       
       // Common
       'common.loading': 'Загрузка...',
@@ -230,9 +310,36 @@ export function getTranslation(locale: string, key: string): string {
       'common.edit': 'Редактировать',
       'common.continue': 'Продолжить',
       'common.back': 'Назад',
+      'common.coins': 'монет',
+      'common.processing': 'Обработка...',
       
       // Errors
       'errors.failedToLoadEvents': 'Не удалось загрузить события',
+      'errors.eventNotFound': 'Событие не найдено',
+      'errors.eventNotActive': 'Событие не активно',
+      'errors.dataLoadError': 'Не удалось загрузить данные',
+      'errors.insufficientBalance': 'Недостаточно средств',
+      'errors.betError': 'Не удалось разместить ставку',
+      'errors.title': 'Ошибка',
+      
+      // Profile
+      'profile.title': 'Мой профиль',
+      'profile.personalInfo': 'Личная информация',
+      'profile.email': 'Email',
+      'profile.username': 'Имя пользователя',
+      'profile.fullName': 'Полное имя',
+      'profile.balance': 'Баланс',
+      'profile.myBets': 'Мои ставки',
+      'profile.transactions': 'Транзакции',
+      'profile.betsHistory': 'История ставок',
+      'profile.transactionsHistory': 'История транзакций',
+      'profile.notSet': 'Не указано',
+      'profile.noBets': 'Вы еще не сделали ни одной ставки',
+      'profile.comingSoon': 'Эта функция скоро появится',
+      'profile.bets.won': 'Выигрыш',
+      'profile.bets.lost': 'Проигрыш',
+      'profile.bets.waiting': 'Ожидание результата',
+      'profile.bets.active': 'Активна',
       
       // Footer
       'footer.tagline': 'Предсказывай и зарабатывай',
