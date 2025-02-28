@@ -104,13 +104,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     language?: string;
   }) => {
     try {
+      // Determine the correct site URL for redirects
+      // This will use the actual URL in production and development
+      const siteUrl = typeof window !== 'undefined' 
+        ? window.location.origin 
+        : process.env.NEXT_PUBLIC_SITE_URL || 'https://betonit-sepia.vercel.app';
+      
       // First, just sign up the user with Supabase Auth
       // We'll create the profile in the users table via the auth callback
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: `${siteUrl}/auth/callback`,
           data: {
             username: userData?.username,
             full_name: userData?.full_name,
