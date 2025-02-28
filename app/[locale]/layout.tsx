@@ -2,6 +2,8 @@ import "../globals.css";
 import { Header } from "@/components/layouts/header";
 import { Footer } from "@/components/layouts/footer";
 import { Poppins, Roboto, Libre_Caslon_Text } from 'next/font/google';
+import { AnalyticsProvider } from "@/components/analytics/analytics-provider";
+import { AuthProvider } from "@/lib/context/auth-context";
 
 const poppins = Poppins({
   subsets: ['latin'],
@@ -45,9 +47,13 @@ export default function LocaleLayout({
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </head>
       <body className={`${mainFont.className} min-h-screen flex flex-col antialiased`}>
-        <Header locale={params.locale} />
-        <main className="flex-grow">{children}</main>
-        <Footer locale={params.locale} />
+        <AnalyticsProvider>
+          <AuthProvider>
+            <Header locale={params.locale} />
+            <main className="flex-grow">{children}</main>
+            <Footer locale={params.locale} />
+          </AuthProvider>
+        </AnalyticsProvider>
       </body>
     </html>
   );
