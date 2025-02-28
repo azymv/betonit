@@ -48,6 +48,12 @@ export function getTranslation(locale: string, key: string): string {
       'auth.signup.signin': 'Sign In',
       'auth.signup.success': 'Account created successfully! Check your email for verification link.',
       
+// Auth error
+'auth.error.title': 'Authentication Error',
+'auth.error.description': 'There was a problem with your authentication',
+'auth.error.message': 'We couldn\'t complete the authentication process. This may be due to an expired link or a server issue.',
+'auth.error.tryAgain': 'Try Again',
+
       // Home page
       'home.title': 'Predict. Win. Earn.',
       'home.subtitle': 'Make predictions on events and earn coins',
@@ -161,6 +167,12 @@ export function getTranslation(locale: string, key: string): string {
       'auth.signup.hasAccount': 'Уже есть аккаунт?',
       'auth.signup.signin': 'Войти',
       'auth.signup.success': 'Аккаунт успешно создан! Проверьте email для подтверждения.',
+
+      // Auth error
+      'auth.error.title': 'Ошибка аутентификации',
+      'auth.error.description': 'Возникла проблема с вашей аутентификацией',
+      'auth.error.message': 'Мы не смогли завершить процесс аутентификации. Это может быть связано с истекшей ссылкой или проблемой на сервере.',
+      'auth.error.tryAgain': 'Попробовать снова',
       
       // Home page
       'home.title': 'Предсказывай. Побеждай. Зарабатывай.',
