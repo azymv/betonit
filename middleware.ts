@@ -6,6 +6,11 @@ export function middleware(request: NextRequest) {
   // Получаем текущий путь
   const { pathname } = request.nextUrl;
   
+  // Skip middleware for auth callback route
+  if (pathname.startsWith('/auth/callback')) {
+    return NextResponse.next();
+  }
+  
   // Игнорируем статические файлы и API маршруты
   if (
     pathname.startsWith('/_next') ||
