@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +18,7 @@ import { useAuth } from '@/lib/context/auth-context';
 import Link from 'next/link';
 import { placeBet } from '@/lib/actions/bet-actions';
 import { Event } from '@/lib/types/event';
+import { User } from '@supabase/supabase-js';
 
 // Define a type for the debug information
 interface DebugInfo {
@@ -29,18 +30,32 @@ interface DebugInfo {
   noUser?: boolean;
   fetchingEvent?: boolean;
   eventResult?: {
-    data: boolean;
+    data: boolean | string | null;
     error: string | null;
   };
   fetchingBalance?: boolean;
   balanceResult?: {
     data: number | null;
     error: string | null;
+    statusCode?: string | null;
   };
   fetchSuccess?: boolean;
   fetchError?: string;
   fetchCompleted?: boolean;
   triggeredFetch?: boolean;
+  fullUserData?: User;
+  requestParams?: { eventId: string; userId: string };
+  eventRequestStarted?: string;
+  eventRequestCompleted?: string;
+  eventFetchException?: string;
+  balanceRequestStarted?: string;
+  balanceRequestCompleted?: string;
+  balanceFetchException?: string;
+  creatingBalance?: boolean;
+  balanceCreationResult?: {
+    data: number | null;
+    error: string | null;
+  };
 }
 
 export default function PlaceBetPage() {
@@ -72,6 +87,9 @@ export default function PlaceBetPage() {
   // Коэффициент для MVP (фиксированный 2.0)
   const ODDS = 2.0;
 
+  // Ref для предотвращения многократного запуска fetchData
+  const fetchAttempted = useRef(false);
+
   // ОТЛАДКА: Выводим текущее состояние аутентификации
   useEffect(() => {
     console.log('Auth state:', { user, isAuthLoading });
@@ -89,13 +107,16 @@ export default function PlaceBetPage() {
   // Получение данных события и баланса пользователя
   useEffect(() => {
     const fetchData = async () => {
+      if (fetchAttempted.current) return;
+      fetchAttempted.current = true;
+      
       setIsLoading(true);
-      setDebugInfo((prev: DebugInfo) => ({ ...prev, fetchStarted: true }));
+      setDebugInfo(prev => ({ ...prev, fetchStarted: true }));
       
       try {
         if (!user) {
           // Обновляем отладочную информацию
-          setDebugInfo((prev: DebugInfo) => ({ ...prev, noUser: true }));
+          setDebugInfo(prev => ({ ...prev, noUser: true }));
           
           // Если пользователь не авторизован, перенаправляем на страницу входа
           console.log('User not authenticated, redirecting to sign in');
@@ -103,90 +124,158 @@ export default function PlaceBetPage() {
           return;
         }
 
+        // Показываем данные пользователя для отладки
+        console.log('Current user:', user);
+        setDebugInfo(prev => ({ ...prev, fullUserData: user }));
+
         const supabase = createClientComponentClient<Database>();
         
+        // Проверка параметров запроса
+        console.log('Event ID being used:', eventIdStr);
+        setDebugInfo(prev => ({ ...prev, requestParams: { eventId: eventIdStr, userId: user.id } }));
+        
         // Получаем событие
-        setDebugInfo((prev: DebugInfo) => ({ ...prev, fetchingEvent: true }));
-        
-        const { data: eventData, error: eventError } = await supabase
-          .from('events')
-          .select('*')
-          .eq('id', eventIdStr)
-          .single();
-        
-        // Обновляем отладочную информацию
-        setDebugInfo((prev: DebugInfo) => ({ 
-          ...prev, 
-          eventResult: { data: eventData ? true : false, error: eventError ? eventError.message : null }
-        }));
-        
-        if (eventError) {
-          console.error('Error fetching event:', eventError);
-          throw eventError;
+        try {
+          setDebugInfo(prev => ({ ...prev, fetchingEvent: true, eventRequestStarted: new Date().toISOString() }));
+          
+          console.log('Requesting event data...');
+          const eventPromise = supabase
+            .from('events')
+            .select('*')
+            .eq('id', eventIdStr)
+            .single();
+          
+          console.log('Event request sent');
+          const { data: eventData, error: eventError } = await eventPromise;
+          console.log('Event response received');
+          
+          // Обновляем отладочную информацию
+          setDebugInfo(prev => ({ 
+            ...prev, 
+            eventRequestCompleted: new Date().toISOString(),
+            eventResult: { 
+              data: eventData ? JSON.stringify(eventData) : null, 
+              error: eventError ? eventError.message : null 
+            }
+          }));
+          
+          if (eventError) {
+            console.error('Error fetching event:', eventError);
+            throw new Error(`Ошибка при загрузке события: ${eventError.message}`);
+          }
+          
+          if (!eventData) {
+            throw new Error(t('errors.eventNotFound'));
+          }
+          
+          // Проверяем, активно ли событие
+          if (eventData.status !== 'active') {
+            throw new Error(t('errors.eventNotActive'));
+          }
+          
+          setEvent(eventData as Event);
+          console.log('Event data set successfully');
+        } catch (eventErr) {
+          console.error('Exception in event fetch:', eventErr);
+          setDebugInfo(prev => ({ ...prev, eventFetchException: String(eventErr) }));
+          throw eventErr;
         }
-        
-        if (!eventData) {
-          throw new Error(t('errors.eventNotFound'));
-        }
-        
-        // Проверяем, активно ли событие
-        if (eventData.status !== 'active') {
-          throw new Error(t('errors.eventNotActive'));
-        }
-        
-        setEvent(eventData as Event);
         
         // Получаем баланс пользователя
-        setDebugInfo((prev: DebugInfo) => ({ ...prev, fetchingBalance: true }));
-        
-        const { data: balanceData, error: balanceError } = await supabase
-          .from('balances')
-          .select('amount')
-          .eq('user_id', user.id)
-          .eq('currency', 'coins')
-          .single();
-        
-        // Обновляем отладочную информацию
-        setDebugInfo((prev: DebugInfo) => ({ 
-          ...prev, 
-          balanceResult: { 
-            data: balanceData ? balanceData.amount : null, 
-            error: balanceError ? balanceError.message : null 
+        try {
+          setDebugInfo(prev => ({ ...prev, fetchingBalance: true, balanceRequestStarted: new Date().toISOString() }));
+          
+          console.log('Requesting balance data...');
+          console.log('User ID for balance query:', user.id);
+          
+          const balancePromise = supabase
+            .from('balances')
+            .select('amount')
+            .eq('user_id', user.id)
+            .eq('currency', 'coins')
+            .single();
+            
+          console.log('Balance request sent');
+          const { data: balanceData, error: balanceError } = await balancePromise;
+          console.log('Balance response received:', balanceData, balanceError);
+          
+          // Обновляем отладочную информацию
+          setDebugInfo(prev => ({ 
+            ...prev, 
+            balanceRequestCompleted: new Date().toISOString(),
+            balanceResult: { 
+              data: balanceData ? balanceData.amount : null, 
+              error: balanceError ? balanceError.message : null,
+              statusCode: balanceError ? balanceError.code : null
+            }
+          }));
+          
+          if (balanceError) {
+            if (balanceError.code === 'PGRST116') {
+              // Запись не найдена, пробуем создать баланс
+              console.log('Balance not found, creating new balance record');
+              setDebugInfo(prev => ({ ...prev, creatingBalance: true }));
+              
+              const { data: newBalance, error: createError } = await supabase
+                .from('balances')
+                .insert({
+                  user_id: user.id,
+                  amount: 1000,
+                  currency: 'coins'
+                })
+                .select('amount')
+                .single();
+                
+              setDebugInfo(prev => ({ 
+                ...prev, 
+                balanceCreationResult: { 
+                  data: newBalance ? newBalance.amount : null, 
+                  error: createError ? createError.message : null 
+                }
+              }));
+              
+              if (createError) {
+                console.error('Error creating balance:', createError);
+                throw new Error(`Ошибка при создании баланса: ${createError.message}`);
+              }
+              
+              setBalance(newBalance?.amount || 1000);
+            } else {
+              console.error('Error fetching balance:', balanceError);
+              throw new Error(`Ошибка при загрузке баланса: ${balanceError.message}`);
+            }
+          } else {
+            setBalance(balanceData?.amount || 0);
           }
-        }));
-        
-        if (balanceError && balanceError.code !== 'PGRST116') {
-          console.error('Error fetching balance:', balanceError);
-          throw balanceError;
+          
+          console.log('Balance data set successfully:', balanceData?.amount);
+        } catch (balanceErr) {
+          console.error('Exception in balance fetch:', balanceErr);
+          setDebugInfo(prev => ({ ...prev, balanceFetchException: String(balanceErr) }));
+          throw balanceErr;
         }
         
-        setBalance(balanceData?.amount || 0);
-        
         // Все данные успешно загружены
-        setDebugInfo((prev: DebugInfo) => ({ ...prev, fetchSuccess: true }));
+        setDebugInfo(prev => ({ ...prev, fetchSuccess: true }));
       } catch (err) {
         console.error('Error fetching data:', err);
         setError(err instanceof Error ? err.message : t('errors.dataLoadError'));
         
         // Обновляем отладочную информацию
-        setDebugInfo((prev: DebugInfo) => ({ 
+        setDebugInfo(prev => ({ 
           ...prev, 
-          fetchError: err instanceof Error ? err.message : String(err) 
+          fetchError: err instanceof Error ? err.message : String(err)
         }));
       } finally {
         setIsLoading(false);
-        setDebugInfo((prev: DebugInfo) => ({ ...prev, fetchCompleted: true }));
+        setDebugInfo(prev => ({ ...prev, fetchCompleted: true }));
       }
     };
     
-    // Ключевое исправление: добавить проверку для предотвращения цикличных вызовов
-    let shouldFetch = true;
-    if (user !== null && !isAuthLoading && !isLoading && shouldFetch) {
-      setDebugInfo(prev => ({ ...prev, triggeredFetch: true }));
-      shouldFetch = false;
+    if (user !== null) {
       fetchData();
     }
-  }, [eventIdStr, user, isAuthLoading, localeStr, router, prediction, t, isLoading]);
+  }, [user, eventIdStr, localeStr, router, prediction, t]);
 
   // Обработка изменения суммы ставки
   const handleAmountChange = (value: string) => {
