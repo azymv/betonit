@@ -40,6 +40,7 @@ interface DebugInfo {
   fetchSuccess?: boolean;
   fetchError?: string;
   fetchCompleted?: boolean;
+  triggeredFetch?: boolean;
 }
 
 export default function PlaceBetPage() {
@@ -178,10 +179,14 @@ export default function PlaceBetPage() {
       }
     };
     
-    if (user !== null || !isAuthLoading) {
+    // Ключевое исправление: добавить проверку для предотвращения цикличных вызовов
+    let shouldFetch = true;
+    if (user !== null && !isAuthLoading && !isLoading && shouldFetch) {
+      setDebugInfo(prev => ({ ...prev, triggeredFetch: true }));
+      shouldFetch = false;
       fetchData();
     }
-  }, [eventIdStr, user, isAuthLoading, localeStr, router, prediction, t]);
+  }, [eventIdStr, user, isAuthLoading, localeStr, router, prediction, t, isLoading]);
 
   // Обработка изменения суммы ставки
   const handleAmountChange = (value: string) => {
