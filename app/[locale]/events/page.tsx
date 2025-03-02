@@ -78,10 +78,12 @@ export default function EventsPage() {
     return t(`events.categories.${category}`);
   };
 
-  // Получаем статистику ставок (заглушка для MVP)
-  const getEventStats = () => {
-    // В реальном приложении это будут данные из БД
-    const yesProbability = Math.floor(Math.random() * 101);
+  // Получаем статистику ставок (фиксированные значения)
+  const getEventStats = (event: Event) => {
+    // Используем ID события для получения стабильного значения
+    const hash = event.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const yesProbability = (hash % 71) + 15; // Значение от 15 до 85
+    
     return {
       yesProbability,
       noProbability: 100 - yesProbability
@@ -170,7 +172,7 @@ export default function EventsPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {events.map((event) => {
-            const stats = getEventStats();
+            const stats = getEventStats(event);
             
             return (
               <Card key={event.id} className="overflow-hidden hover:shadow-md transition-shadow">

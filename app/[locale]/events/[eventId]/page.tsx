@@ -98,17 +98,20 @@ export default function EventPage() {
     return t(`events.categories.${category}`);
   };
 
-  // Получаем статистику ставок (заглушка для MVP)
-  const getEventStats = () => {
-    // В реальном приложении это будут данные из БД
-    const yesProbability = Math.floor(Math.random() * 101);
-    return {
-      yesProbability,
-      noProbability: 100 - yesProbability,
-      yesAmount: yesProbability * 100,
-      noAmount: (100 - yesProbability) * 100
-    };
+// Получаем статистику ставок (фиксированные значения для MVP)
+const getEventStats = () => {
+  // Используем детерминированное значение на основе ID события
+  // Это сделает проценты стабильными, пока ID не изменится
+  const hash = eventIdStr.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const yesProbability = (hash % 71) + 15; // Значение от 15 до 85
+  
+  return {
+    yesProbability,
+    noProbability: 100 - yesProbability,
+    yesAmount: yesProbability * 100,
+    noAmount: (100 - yesProbability) * 100
   };
+};
 
   // Отображение загрузки
   if (isLoading) {

@@ -7,11 +7,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useTranslation } from "@/lib/i18n-config";
 import { RainbowButton } from "@/components/ui/rainbow-button";
 import { HowItWorksSection } from "@/components/sections/how-it-works";
+import { useAuth } from "@/lib/context/auth-context";
 
 export default function HomePage() {
   const params = useParams();
   const locale = params.locale as string;
   const { t } = useTranslation(locale);
+  const { user } = useAuth();
 
   const featuredEvents = [
     {
@@ -69,11 +71,19 @@ export default function HomePage() {
           <p className="text-xl mb-8 max-w-2xl mx-auto">
             {t('home.subtitle')}
           </p>
-          <Link href={`/${locale}/auth/signup`}>
-            <RainbowButton>
-              {t('home.cta')}
-            </RainbowButton>
-          </Link>
+          {user ? (
+            <Link href={`/${locale}/events`}>
+              <RainbowButton>
+                {locale === 'en' ? 'Make a prediction' : 'Сделать предсказание'}
+              </RainbowButton>
+            </Link>
+          ) : (
+            <Link href={`/${locale}/auth/signup`}>
+              <RainbowButton>
+                {t('home.cta')}
+              </RainbowButton>
+            </Link>
+          )}
         </div>
       </section>
 
