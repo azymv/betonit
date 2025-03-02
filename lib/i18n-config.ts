@@ -123,9 +123,7 @@ export function getTranslation(locale: string, key: string): string {
       'events.betSuccess': 'Bet Placed Successfully',
       'events.betPlacedSuccess': 'Your bet has been successfully placed!',
       'events.backToEvent': 'Back to Event',
-      
-      
-      // Common
+    
       // Common
       'common.loading': 'Loading...',
       'common.search': 'Search',
@@ -167,6 +165,18 @@ export function getTranslation(locale: string, key: string): string {
       'profile.bets.lost': 'Lost',
       'profile.bets.waiting': 'Pending Resolution',
       'profile.bets.active': 'Active',
+      'profile.stats.title': 'Betting Statistics',
+'profile.stats.total': 'Total Bets',
+'profile.stats.won': 'Won',
+'profile.stats.lost': 'Lost',
+'profile.stats.accuracy': 'Forecast Accuracy',
+'profile.referral.title': 'Referral Program',
+'profile.referral.description': 'Invite friends and receive 100 coins for each registered user. Your friend will also get 50 bonus coins upon registration.',
+'profile.referral.yourLink': 'Your referral link:',
+'profile.referral.getLink': 'Get Referral Link',
+'profile.referral.generating': 'Generating...',
+'profile.referral.invited': 'Invited',
+'profile.referral.earned': 'Coins Earned',
       
       // Footer
       'footer.tagline': 'Predict and earn',
@@ -340,6 +350,18 @@ export function getTranslation(locale: string, key: string): string {
       'profile.bets.lost': 'Проигрыш',
       'profile.bets.waiting': 'Ожидание результата',
       'profile.bets.active': 'Активна',
+      'profile.stats.title': 'Статистика ставок',
+'profile.stats.total': 'Всего ставок',
+'profile.stats.won': 'Побед',
+'profile.stats.lost': 'Поражений',
+'profile.stats.accuracy': 'Точность прогнозов',
+'profile.referral.title': 'Реферальная программа',
+'profile.referral.description': 'Пригласите друзей и получите 100 монет за каждого зарегистрировавшегося пользователя. Ваш друг также получит 50 бонусных монет при регистрации.',
+'profile.referral.yourLink': 'Ваша реферальная ссылка:',
+'profile.referral.getLink': 'Получить реферальную ссылку',
+'profile.referral.generating': 'Генерация...',
+'profile.referral.invited': 'Приглашено',
+'profile.referral.earned': 'Заработано монет',
       
       // Footer
       'footer.tagline': 'Предсказывай и зарабатывай',

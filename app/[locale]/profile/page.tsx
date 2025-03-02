@@ -273,26 +273,26 @@ export default function ProfilePage() {
           {betStats && (
             <Card className="mt-6">
               <CardHeader className="pb-3">
-                <CardTitle>Статистика ставок</CardTitle>
+                <CardTitle>{t('profile.stats.title')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-3 gap-4 text-center">
                   <div>
                     <p className="text-2xl font-bold">{betStats.total}</p>
-                    <p className="text-sm text-muted-foreground">Всего ставок</p>
+                    <p className="text-sm text-muted-foreground">{t('profile.stats.total')}</p>
                   </div>
                   <div>
                     <p className="text-2xl font-bold text-green-600">{betStats.won}</p>
-                    <p className="text-sm text-muted-foreground">Побед</p>
+                    <p className="text-sm text-muted-foreground">{t('profile.stats.won')}</p>
                   </div>
                   <div>
                     <p className="text-2xl font-bold text-red-600">{betStats.lost}</p>
-                    <p className="text-sm text-muted-foreground">Поражений</p>
+                    <p className="text-sm text-muted-foreground">{t('profile.stats.lost')}</p>
                   </div>
                 </div>
                 
                 <div className="mt-4">
-                  <p className="text-sm text-muted-foreground mb-1">Точность прогнозов</p>
+                  <p className="text-sm text-muted-foreground mb-1">{t('profile.stats.accuracy')}</p>
                   <div className="w-full bg-slate-200 h-2 rounded-full">
                     <div
                       className="bg-green-500 h-2 rounded-full"
@@ -312,19 +312,18 @@ export default function ProfilePage() {
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2">
                 <Users className="h-5 w-5" />
-                Реферальная программа
+                {t('profile.referral.title')}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-sm mb-4">
-                Пригласите друзей и получите 100 монет за каждого зарегистрировавшегося пользователя. 
-                Ваш друг также получит 50 бонусных монет при регистрации.
+                {t('profile.referral.description')}
               </p>
               
               {referralCode ? (
                 <div className="space-y-4">
                   <div className="relative">
-                    <p className="text-sm text-muted-foreground mb-1">Ваша реферальная ссылка:</p>
+                    <p className="text-sm text-muted-foreground mb-1">{t('profile.referral.yourLink')}</p>
                     <div className="flex">
                       <input
                         type="text"
@@ -352,11 +351,11 @@ export default function ProfilePage() {
                       <div className="grid grid-cols-2 gap-4 text-center">
                         <div>
                           <p className="text-xl font-bold">{referralStats.totalReferrals}</p>
-                          <p className="text-sm text-muted-foreground">Приглашено</p>
+                          <p className="text-sm text-muted-foreground">{t('profile.referral.invited')}</p>
                         </div>
                         <div>
                           <p className="text-xl font-bold">{formatNumber(referralStats.totalEarned)}</p>
-                          <p className="text-sm text-muted-foreground">Заработано монет</p>
+                          <p className="text-sm text-muted-foreground">{t('profile.referral.earned')}</p>
                         </div>
                       </div>
                     </div>
@@ -371,10 +370,10 @@ export default function ProfilePage() {
                   {isGeneratingCode ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Генерация...
+                      {t('profile.referral.generating')}
                     </>
                   ) : (
-                    'Получить реферальную ссылку'
+                    t('profile.referral.getLink')
                   )}
                 </Button>
               )}
