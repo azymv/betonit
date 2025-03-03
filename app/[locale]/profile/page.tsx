@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Database } from '@/lib/types/supabase';
-import { Loader2, User, Wallet, ListTodo, Users, Copy, CheckCircle2 } from 'lucide-react';
+import { Loader2, User, Wallet, ListTodo, Users, Copy, CheckCircle2, BarChart3 } from 'lucide-react';
 import { generateReferralCode, getReferralStats } from '../../../lib/actions/referral-actions';
 
 // Типы из Database
@@ -273,7 +273,10 @@ export default function ProfilePage() {
           {betStats && (
             <Card className="mt-6">
               <CardHeader className="pb-3">
-                <CardTitle>{t('profile.stats.title')}</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5" />
+                  {t('profile.stats.title')}
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-3 gap-4 text-center">
@@ -308,14 +311,16 @@ export default function ProfilePage() {
           )}
           
           {/* Реферальная программа */}
-          <Card className="mt-6">
-            <CardHeader className="pb-3">
+          <Card className="mt-6 relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-r from-pink-500/10 via-purple-500/10 to-indigo-500/10 bg-[size:400%_400%] animate-gradient" />
+            <div className="absolute inset-0 bg-gradient-to-r from-pink-500/10 via-purple-500/10 to-indigo-500/10 bg-[size:400%_400%] blur-xl animate-gradient" />
+            <CardHeader className="pb-3 relative">
               <CardTitle className="flex items-center gap-2">
                 <Users className="h-5 w-5" />
                 {t('profile.referral.title')}
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="relative">
               <p className="text-sm mb-4">
                 {t('profile.referral.description')}
               </p>

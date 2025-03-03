@@ -60,7 +60,23 @@ export default {
   		backgroundImage: {
   			'grid-pattern': 'radial-gradient(circle, rgba(107, 114, 128, 0.1) 1px, transparent 1px)',
   			'grid-pattern-light': 'radial-gradient(circle, rgba(107, 114, 128, 0.05) 1px, transparent 1px)'
-  		}
+  		},
+      keyframes: {
+        gradient: {
+          '0%': {
+            'background-position': '0% 50%'
+          },
+          '50%': {
+            'background-position': '100% 50%'
+          },
+          '100%': {
+            'background-position': '0% 50%'
+          }
+        },
+      },
+      animation: {
+        gradient: 'gradient 8s ease infinite',
+      },
   	}
   },
   plugins: [animate],
