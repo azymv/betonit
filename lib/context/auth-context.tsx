@@ -148,18 +148,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
-      // Использование бразуерного клиента Supabase
-      const { error } = await supabase.auth.signOut({
-        scope: 'local' // Явно указываем локальный выход вместо глобального
-      });
+      // Сначала попробуем получить текущую сессию
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
       
-      if (error) {
-        console.error("Sign out error:", error);
+      // Если сессии нет, просто очищаем состояние
+      if (!currentSession) {
+        setUser(null);
+        setSession(null);
+        resetAnalytics();
+        return { error: null };
       }
       
-      return { error };
+      // Если сессия есть, пытаемся выйти
+      const { error } = await supabase.auth.signOut();
+      
+      // Даже если возникла ошибка, очищаем локальное состояние
+      setUser(null);
+      setSession(null);
+      resetAnalytics();
+      
+      // Сообщаем об ошибке, но не прерываем процесс выхода
+      if (error) {
+        console.error("Error during sign out:", error);
+      }
+      
+      return { error: null };
     } catch (error) {
       console.error("Exception during sign out:", error);
+      
+      // Даже при исключении очищаем состояние
+      setUser(null);
+      setSession(null);
+      resetAnalytics();
+      
       return { error: error as Error };
     }
   };
