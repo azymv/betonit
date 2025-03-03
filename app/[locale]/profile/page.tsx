@@ -45,6 +45,8 @@ export default function ProfilePage() {
   const isMounted = useRef(true);
   // Отслеживаем, была ли уже попытка загрузки данных
   const dataLoadAttempted = useRef(false);
+  // Отслеживаем, был ли установлен таймаут для аутентификации
+  const authTimeoutSet = useRef(false);
   
   const [balance, setBalance] = useState<number | null>(null);
   const [userBets, setUserBets] = useState<BetWithEvent[]>([]);
@@ -55,6 +57,8 @@ export default function ProfilePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [referralLink, setReferralLink] = useState<string>('');
+  // Локальное состояние для отслеживания таймаута аутентификации
+  const [authTimedOut, setAuthTimedOut] = useState(false);
   
   // Обновляем реферальную ссылку при изменении кода
   useEffect(() => {
@@ -124,6 +128,7 @@ export default function ProfilePage() {
   
   // Функция загрузки данных профиля
   const loadProfileData = useCallback(async () => {
+    // Проверяем наличие пользователя
     if (!user) {
       console.log("No user in loadProfileData, redirecting");
       router.push(`/${localeStr}/auth/signin?redirectTo=/${localeStr}/profile`);
@@ -132,6 +137,14 @@ export default function ProfilePage() {
     
     // Устанавливаем флаг, что попытка загрузки была сделана
     dataLoadAttempted.current = true;
+    
+    // Проверяем, есть ли у пользователя ID
+    if (!user.id) {
+      console.error("User object exists but has no ID");
+      setError("User authentication incomplete. Please try refreshing the page.");
+      setIsLoading(false);
+      return;
+    }
     
     setIsLoading(true);
     setError(null);
@@ -142,77 +155,86 @@ export default function ProfilePage() {
       
       // Проверяем существование профиля перед загрузкой данных
       console.log("Checking if profile exists for user:", user.id);
-      const { data: profileData, error: profileError } = await supabase
-        .from('users')
-        .select('id, referral_code')
-        .eq('id', user.id)
-        .single();
       
-      console.log("Profile check result:", { profileData, profileError });
+      // Добавляем обработку ошибок при запросе к базе данных
+      try {
+        const { data: profileData, error: profileError } = await supabase
+          .from('users')
+          .select('id, referral_code')
+          .eq('id', user.id)
+          .single();
         
-      // Если профиль не существует, создаем его через API
-      if (profileError && profileError.code === 'PGRST116') {
-        console.log('Profile not found, creating via API...');
-        
-        try {
-          const response = await fetch('/api/create-profile', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              userId: user.id,
-              email: user.email,
-              username: user.user_metadata?.username,
-              fullName: user.user_metadata?.full_name,
-              language: user.user_metadata?.language,
-            }),
-          });
+        console.log("Profile check result:", { profileData, profileError });
           
-          const responseData = await response.json();
-          console.log("Profile creation response:", responseData);
+        // Если профиль не существует, создаем его через API
+        if (profileError && profileError.code === 'PGRST116') {
+          console.log('Profile not found, creating via API...');
           
-          if (!response.ok) {
-            console.error('Failed to create profile:', responseData);
-            setError('Failed to create user profile');
+          try {
+            const response = await fetch('/api/create-profile', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                userId: user.id,
+                email: user.email,
+                username: user.user_metadata?.username,
+                fullName: user.user_metadata?.full_name,
+                language: user.user_metadata?.language,
+              }),
+            });
+            
+            const responseData = await response.json();
+            console.log("Profile creation response:", responseData);
+            
+            if (!response.ok) {
+              console.error('Failed to create profile:', responseData);
+              setError('Failed to create user profile');
+              setIsLoading(false);
+              return;
+            }
+            
+            console.log('Profile created successfully');
+            
+            // Даем время БД на обновление
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Получаем созданный профиль для получения реферального кода
+            const { data: newProfile, error: newProfileError } = await supabase
+              .from('users')
+              .select('referral_code')
+              .eq('id', user.id)
+              .single();
+            
+            console.log("New profile fetch result:", { newProfile, newProfileError });
+              
+            if (newProfile?.referral_code) {
+              setReferralCode(newProfile.referral_code);
+            }
+          } catch (e) {
+            console.error('Error creating profile:', e);
+            setError('Error creating user profile');
             setIsLoading(false);
             return;
           }
-          
-          console.log('Profile created successfully');
-          
-          // Даем время БД на обновление
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          // Получаем созданный профиль для получения реферального кода
-          const { data: newProfile, error: newProfileError } = await supabase
-            .from('users')
-            .select('referral_code')
-            .eq('id', user.id)
-            .single();
-          
-          console.log("New profile fetch result:", { newProfile, newProfileError });
-            
-          if (newProfile?.referral_code) {
-            setReferralCode(newProfile.referral_code);
-          }
-        } catch (e) {
-          console.error('Error creating profile:', e);
-          setError('Error creating user profile');
+        } else if (profileError) {
+          console.error('Error checking user profile:', profileError);
+          setError('Error checking user profile');
           setIsLoading(false);
           return;
+        } else if (profileData) {
+          console.log("Profile exists:", profileData);
+          // Если профиль существует, получаем реферальный код
+          if (profileData.referral_code) {
+            setReferralCode(profileData.referral_code);
+          }
         }
-      } else if (profileError) {
-        console.error('Error checking user profile:', profileError);
-        setError('Error checking user profile');
+      } catch (dbError) {
+        console.error("Database error when checking profile:", dbError);
+        setError("Database error. Please try again later.");
         setIsLoading(false);
         return;
-      } else if (profileData) {
-        console.log("Profile exists:", profileData);
-        // Если профиль существует, получаем реферальный код
-        if (profileData.referral_code) {
-          setReferralCode(profileData.referral_code);
-        }
       }
       
       // Загружаем данные параллельно
@@ -275,6 +297,40 @@ export default function ProfilePage() {
     }
   }, [user, router, localeStr]);
   
+  // Добавляем таймаут для состояния загрузки аутентификации
+  useEffect(() => {
+    // Если аутентификация загружается слишком долго, считаем что она завершилась
+    if (isAuthLoading && !authTimeoutSet.current) {
+      authTimeoutSet.current = true;
+      console.log("Setting auth timeout");
+      
+      const timeout = setTimeout(() => {
+        if (isMounted.current && isAuthLoading) {
+          console.log("Auth loading timed out after 5 seconds");
+          setAuthTimedOut(true);
+          
+          // Если пользователь есть, пытаемся загрузить данные
+          if (user) {
+            console.log("User exists, loading profile data despite auth timeout");
+            loadProfileData();
+          } else {
+            console.log("No user after auth timeout, redirecting to login");
+            router.push(`/${localeStr}/auth/signin?redirectTo=/${localeStr}/profile`);
+          }
+        }
+      }, 5000); // 5 секунд таймаут
+      
+      return () => {
+        clearTimeout(timeout);
+      };
+    }
+    
+    // Сбрасываем флаг таймаута, если аутентификация завершилась
+    if (!isAuthLoading) {
+      authTimeoutSet.current = false;
+    }
+  }, [isAuthLoading, user, router, localeStr, loadProfileData]);
+  
   // Загрузка данных только при первом рендере или изменении пользователя
   useEffect(() => {
     // Сбрасываем флаг при изменении пользователя
@@ -283,16 +339,16 @@ export default function ProfilePage() {
     }
     
     // Защита от перезагрузки при потере фокуса вкладки
-    if (!isAuthLoading && user && !dataLoadAttempted.current) {
+    if ((!isAuthLoading || authTimedOut) && user && !dataLoadAttempted.current) {
       console.log("Loading profile data for user:", user.id);
       loadProfileData();
-    } else if (!isAuthLoading && !user) {
+    } else if ((!isAuthLoading || authTimedOut) && !user) {
       console.log("User not authenticated, redirecting to login");
       router.push(`/${localeStr}/auth/signin?redirectTo=/${localeStr}/profile`);
-    } else if (isAuthLoading) {
+    } else if (isAuthLoading && !authTimedOut) {
       console.log("Auth is loading, waiting...");
     }
-  }, [user, isAuthLoading, loadProfileData, router, localeStr]);
+  }, [user, isAuthLoading, loadProfileData, router, localeStr, authTimedOut]);
   
   // Добавляем обработчик ошибок для отладки
   useEffect(() => {
@@ -342,10 +398,10 @@ export default function ProfilePage() {
   };
   
   // Отображение загрузки
-  if (isLoading || isAuthLoading) {
+  if ((isLoading || (isAuthLoading && !authTimedOut)) && !error) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold mb-8">{isAuthLoading ? t('profile.checkingAuth') : t('profile.loading')}</h1>
+        <h1 className="text-2xl font-bold mb-8">{isAuthLoading && !authTimedOut ? t('profile.checkingAuth') : t('profile.loading')}</h1>
         
         <div className="grid gap-8">
           <Skeleton className="h-40 w-full rounded-lg" />

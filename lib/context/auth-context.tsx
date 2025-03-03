@@ -46,8 +46,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const ensureUserProfile = useCallback(async (currentUser: User) => {
     if (!currentUser) return;
     
+    // Устанавливаем таймаут для создания профиля
+    const profileTimeout = setTimeout(() => {
+      console.log("Profile creation timed out after 10 seconds");
+    }, 10000);
+    
     try {
       console.log("Checking if user profile exists for:", currentUser.id);
+      
+      // Проверяем, что у пользователя есть ID
+      if (!currentUser.id) {
+        console.error("User object has no ID");
+        return;
+      }
       
       // Проверяем существование профиля с максимальной надежностью
       const { data, error } = await supabase
@@ -86,6 +97,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (err) {
       console.error("Error in ensureUserProfile:", err);
+    } finally {
+      // Очищаем таймаут
+      clearTimeout(profileTimeout);
     }
   }, [supabase]);
 
@@ -94,8 +108,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const getInitialSession = async () => {
       setIsLoading(true);
       
+      // Устанавливаем таймаут для загрузки сессии
+      const sessionTimeout = setTimeout(() => {
+        console.log("Session loading timed out after 5 seconds");
+        setIsLoading(false);
+      }, 5000);
+      
       try {
         const { data: { session: initialSession } } = await supabase.auth.getSession();
+        // Очищаем таймаут, так как сессия загружена
+        clearTimeout(sessionTimeout);
+        
         setSession(initialSession);
         setUser(initialSession?.user || null);
         
@@ -108,6 +131,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch (err) {
         console.error('Error getting initial session:', err);
       } finally {
+        // Очищаем таймаут на всякий случай
+        clearTimeout(sessionTimeout);
         setIsLoading(false);
       }
     };
@@ -121,21 +146,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(changedSession);
         setUser(changedSession?.user || null);
         
-        if (event === 'SIGNED_IN' && changedSession?.user) {
-          identify(changedSession.user.id);
-          track(ANALYTICS_EVENTS.LOGIN, {
-            userId: changedSession.user.id,
-            email: changedSession.user.email,
-          });
-          
-          // Проверяем существование профиля и создаем его при необходимости
-          await ensureUserProfile(changedSession.user);
-        } else if (event === 'SIGNED_OUT') {
-          resetAnalytics();
-          track(ANALYTICS_EVENTS.LOGOUT);
+        // Устанавливаем флаг загрузки при изменении состояния аутентификации
+        if (event !== 'INITIAL_SESSION') {
+          setIsLoading(true);
         }
         
-        router.refresh();
+        // Устанавливаем таймаут для обработки изменения состояния аутентификации
+        const authChangeTimeout = setTimeout(() => {
+          console.log("Auth state change processing timed out after 5 seconds");
+          setIsLoading(false);
+        }, 5000);
+        
+        try {
+          if (event === 'SIGNED_IN' && changedSession?.user) {
+            identify(changedSession.user.id);
+            track(ANALYTICS_EVENTS.LOGIN, {
+              userId: changedSession.user.id,
+              email: changedSession.user.email,
+            });
+            
+            // Проверяем существование профиля и создаем его при необходимости
+            await ensureUserProfile(changedSession.user);
+          } else if (event === 'SIGNED_OUT') {
+            resetAnalytics();
+            track(ANALYTICS_EVENTS.LOGOUT);
+          }
+          
+          router.refresh();
+        } catch (error) {
+          console.error("Error processing auth state change:", error);
+        } finally {
+          // Очищаем таймаут и сбрасываем флаг загрузки
+          clearTimeout(authChangeTimeout);
+          setIsLoading(false);
+        }
       }
     );
 
