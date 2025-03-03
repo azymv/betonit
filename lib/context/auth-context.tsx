@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
 import { Database } from '@/lib/types/supabase';
@@ -42,73 +42,74 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   
   const supabase = createClientComponentClient<Database>();
 
-  // Проверяем существование профиля пользователя
-  const ensureUserProfile = async (currentUser: User) => {
+  // Функция для проверки и создания профиля пользователя
+  const ensureUserProfile = useCallback(async (currentUser: User) => {
     if (!currentUser) return;
     
     try {
-      const { data: profileData, error } = await supabase
+      console.log("Checking if user profile exists for:", currentUser.id);
+      
+      // Проверяем существование профиля с максимальной надежностью
+      const { data, error } = await supabase
         .from('users')
         .select('id')
         .eq('id', currentUser.id)
         .single();
+      
+      // Если профиль найден, ничего не делаем
+      if (!error && data) {
+        console.log("User profile exists. No action needed.");
+        return;
+      }
+      
+      // Если профиль не найден (или возникла другая ошибка), создаем профиль
+      // используя серверное действие
+      if (error) {
+        console.log("Error or profile not found, creating profile via server action");
         
-      // Если профиль не найден, создаем его
-      if (error && error.code === 'PGRST116') {
-        console.log('Profile not found in auth context, creating...');
+        // Используем серверное действие из auth-actions
+        const { createProfileIfNeeded } = await import('@/lib/actions/auth-actions');
         
-        try {
-          const response = await fetch('/api/create-profile', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              userId: currentUser.id,
-              email: currentUser.email,
-              username: currentUser.user_metadata?.username,
-              fullName: currentUser.user_metadata?.full_name,
-              language: currentUser.user_metadata?.language,
-            }),
-          });
-          
-          const result = await response.json();
-          
-          if (!response.ok) {
-            console.error('Error creating user profile from auth context:', result.error);
-          } else {
-            console.log('Successfully created user profile from auth context');
-          }
-        } catch (err) {
-          console.error('Exception creating profile from auth context:', err);
+        const result = await createProfileIfNeeded(currentUser.id, {
+          email: currentUser.email || '',
+          username: currentUser.user_metadata?.username,
+          full_name: currentUser.user_metadata?.full_name,
+          language: currentUser.user_metadata?.language || 'en',
+          referred_by: currentUser.user_metadata?.referred_by,
+        });
+        
+        if (!result.success) {
+          console.error("Failed to create user profile:", result.error);
+        } else {
+          console.log("User profile created/verified successfully");
         }
-      } else if (error) {
-        console.error('Error checking user profile:', error);
-      } else {
-        console.log('User profile already exists:', profileData?.id);
       }
     } catch (err) {
-      console.error('Exception checking user profile:', err);
+      console.error("Error in ensureUserProfile:", err);
     }
-  };
+  }, [supabase]);
 
   useEffect(() => {
     // Get initial session
     const getInitialSession = async () => {
       setIsLoading(true);
       
-      const { data: { session: initialSession } } = await supabase.auth.getSession();
-      setSession(initialSession);
-      setUser(initialSession?.user || null);
-      
-      if (initialSession?.user) {
-        identify(initialSession.user.id);
+      try {
+        const { data: { session: initialSession } } = await supabase.auth.getSession();
+        setSession(initialSession);
+        setUser(initialSession?.user || null);
         
-        // Проверяем и создаем профиль при необходимости
-        await ensureUserProfile(initialSession.user);
+        if (initialSession?.user) {
+          identify(initialSession.user.id);
+          
+          // Проверяем существование профиля и создаем его при необходимости
+          await ensureUserProfile(initialSession.user);
+        }
+      } catch (err) {
+        console.error('Error getting initial session:', err);
+      } finally {
+        setIsLoading(false);
       }
-      
-      setIsLoading(false);
     };
     
     getInitialSession();
@@ -116,6 +117,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Set up auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, changedSession) => {
+        console.log("Auth state changed:", event);
         setSession(changedSession);
         setUser(changedSession?.user || null);
         
@@ -126,7 +128,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             email: changedSession.user.email,
           });
           
-          // Проверяем и создаем профиль при входе
+          // Проверяем существование профиля и создаем его при необходимости
           await ensureUserProfile(changedSession.user);
         } else if (event === 'SIGNED_OUT') {
           resetAnalytics();
@@ -140,12 +142,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       subscription.unsubscribe();
     };
-  }, [supabase, router, identify, track, resetAnalytics]);
+  }, [supabase, router, identify, track, resetAnalytics, ensureUserProfile]);
 
   const signIn = async (email: string, password: string) => {
     try {
-      setIsLoading(true);
-      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -155,7 +155,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error };
       }
       
-      // Проверяем и создаем профиль при входе
+      // После успешного входа проверяем и создаем профиль при необходимости
       if (data.user) {
         await ensureUserProfile(data.user);
       }
@@ -163,8 +163,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { error: null };
     } catch (error) {
       return { error: error as Error };
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -175,8 +173,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     referred_by?: string | null;
   }) => {
     try {
-      setIsLoading(true);
-      
       // Determine the correct site URL for redirects
       const siteUrl = typeof window !== 'undefined' 
         ? window.location.origin 
@@ -192,7 +188,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             username: userData?.username,
             full_name: userData?.full_name,
             language: userData?.language || 'en',
-            referred_by: userData?.referred_by || null,
+            referred_by: userData?.referred_by,
           }
         },
       });
@@ -201,47 +197,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error };
       }
       
+      // Если регистрация произошла без подтверждения email (в режиме разработки),
+      // то можно создать профиль сразу
+      if (data.user && !data.session) {
+        console.log("User registered but no session yet (email confirmation required)");
+      } else if (data.user && data.session) {
+        console.log("User registered with session, creating profile immediately");
+        await ensureUserProfile(data.user);
+      }
+      
       // Track the sign-up event
       if (data.user) {
         track(ANALYTICS_EVENTS.SIGN_UP, { 
           email, 
           username: userData?.username,
-          language: userData?.language,
-          referred_by: userData?.referred_by
+          language: userData?.language 
         });
-        
-        // Добавляем задержку перед созданием профиля
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Создаем профиль пользователя
-        await ensureUserProfile(data.user);
-        
-        // Если есть реферальный код, обрабатываем его
-        if (userData?.referred_by) {
-          try {
-            // Находим ID реферера по коду
-            const { data: referrerData, error: referrerError } = await supabase
-              .from('users')
-              .select('id')
-              .eq('referral_code', userData.referred_by)
-              .single();
-              
-            if (!referrerError && referrerData?.id) {
-              // Импортируем и вызываем функцию обработки реферальной награды
-              const { processReferralReward } = await import('@/lib/actions/referral-actions');
-              await processReferralReward(referrerData.id, data.user.id);
-            }
-          } catch (refError) {
-            console.error('Error processing referral:', refError);
-          }
-        }
       }
       
       return { error: null };
     } catch (error) {
       return { error: error as Error };
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -259,7 +235,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       
       // Если сессия есть, пытаемся выйти
-      const { error } = await supabase.auth.signOut();
+      const { error } = await supabase.auth.signOut({
+        scope: 'local' // Явно указываем локальный выход вместо глобального
+      });
       
       // Даже если возникла ошибка, очищаем локальное состояние
       setUser(null);

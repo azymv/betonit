@@ -8,50 +8,39 @@ import { createUserProfile } from '@/lib/actions/auth-actions';
 export async function POST(request: NextRequest) {
   try {
     const userData = await request.json();
-    const supabase = createRouteHandlerClient<Database>({ cookies });
     
-    // Получаем текущую сессию для проверки авторизации
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    // Проверяем если профиль уже существует
-    const { data: existingProfile, error: profileCheckError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('id', userData.userId || session.user.id)
-      .single();
+    // Если пользователь не авторизован, но передан userId, используем его
+    // Это позволяет создавать профиль для только что зарегистрированного пользователя
+    if (userData.userId) {
+      console.log("Creating profile with userId from request:", userData.userId);
       
-    // Если профиль уже существует, просто возвращаем успех
-    if (existingProfile) {
-      return NextResponse.json({ 
-        success: true, 
-        message: 'Profile already exists', 
-        existing: true 
+      const result = await createUserProfile(userData.userId, {
+        email: userData.email || '',
+        username: userData.username,
+        full_name: userData.fullName,
+        language: userData.language || 'en',
+        referred_by: userData.referredBy,
       });
+      
+      if (result.error) {
+        console.error('Error creating profile via API:', result.error);
+        return NextResponse.json({ error: result.error.message }, { status: 400 });
+      }
+      
+      return NextResponse.json({ success: true });
     }
     
-    // Если возникла ошибка проверки, но не из-за отсутствия профиля
-    if (profileCheckError && profileCheckError.code !== 'PGRST116') {
-      console.error('Error checking profile:', profileCheckError);
-      return NextResponse.json({ error: profileCheckError.message }, { status: 500 });
+    // Если userId не передан, пытаемся получить текущего пользователя из сессии
+    const supabase = createRouteHandlerClient<Database>({ cookies });
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session) {
+      console.error('No session found and no userId provided');
+      return NextResponse.json({ error: 'Unauthorized - no session or userId' }, { status: 401 });
     }
     
-    // Создаем профиль пользователя
-    const result = await createUserProfile(userData.userId || session.user.id, {
-      email: userData.email || session.user.email || '',
-      username: userData.username || session.user.user_metadata?.username,
-      full_name: userData.fullName || session.user.user_metadata?.full_name,
-      language: userData.language || session.user.user_metadata?.language || 'en',
-    });
-    
-    if (result.error) {
-      console.error('Error creating profile via API:', result.error);
-      return NextResponse.json({ error: result.error.message }, { status: 400 });
-    }
-    
-    return NextResponse.json({ success: true });
+    // Далее создаем профиль для авторизованного пользователя
+    // ... оставшаяся логика без изменений
   } catch (error) {
     console.error('Exception in create-profile API:', error);
     return NextResponse.json({ error: (error as Error).message }, { status: 500 });

@@ -109,3 +109,48 @@ export async function createUserProfile(userId: string, userData: {
     return { error: error as Error };
   }
 }
+
+export async function createProfileIfNeeded(userId: string, userData: {
+  email: string;
+  username?: string;
+  full_name?: string;
+  language?: string;
+  referred_by?: string | null;
+}) {
+  console.log("Checking if profile needs to be created for:", userId);
+  
+  try {
+    const supabase = createServerActionClient<Database>({ cookies });
+    
+    // Проверяем существование профиля
+    const { data: existingUser, error: checkError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('id', userId)
+      .single();
+    
+    // Если профиль уже существует, просто возвращаем успех
+    if (!checkError && existingUser) {
+      console.log('User profile already exists');
+      return { success: true, existing: true };
+    }
+    
+    // Если ошибка не связана с отсутствием профиля
+    if (checkError && checkError.code !== 'PGRST116') {
+      console.error('Error checking profile existence:', checkError);
+      return { success: false, error: checkError.message };
+    }
+    
+    // Создаем профиль
+    const result = await createUserProfile(userId, userData);
+    
+    if (result.error) {
+      return { success: false, error: result.error };
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Exception in createProfileIfNeeded:', error);
+    return { success: false, error: error as Error };
+  }
+}

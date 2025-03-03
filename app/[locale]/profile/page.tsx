@@ -1,7 +1,7 @@
 // app/[locale]/profile/page.tsx
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useTranslation } from '@/lib/i18n-config';
 import { useAuth } from '@/lib/context/auth-context';
@@ -48,137 +48,65 @@ export default function ProfilePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  // Функция загрузки данных профиля
-  const loadProfileData = useCallback(async () => {
-    // Если пользователь не авторизован, прекращаем выполнение
-    if (!user) {
-      router.push(`/${localeStr}/auth/signin?redirectTo=/${localeStr}/profile`);
-      return;
-    }
-    
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      const supabase = createClientComponentClient<Database>();
-      
-      // Загружаем данные пользователя
-      const { error: profileError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-      
-      // Если профиль не существует, создаем его через API
-      if (profileError && profileError.code === 'PGRST116') {
-        console.log('Profile not found, creating...');
-        
-        try {
-          const response = await fetch('/api/create-profile', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              userId: user.id,
-              email: user.email,
-              username: user.user_metadata?.username,
-              fullName: user.user_metadata?.full_name,
-              language: user.user_metadata?.language,
-            }),
-          });
-          
-          if (!response.ok) {
-            const errorData = await response.json();
-            console.error('Failed to create profile:', errorData);
-            setError('Failed to create user profile');
-            setIsLoading(false);
-            return;
-          }
-          
-          // Даем время БД на обновление
-          await new Promise(resolve => setTimeout(resolve, 500));
-          
-          // Повторно пытаемся загрузить данные после создания профиля
-          const { error: retryError } = await supabase
-            .from('users')
-            .select('*')
-            .eq('id', user.id)
-            .single();
-            
-          if (retryError) {
-            console.error('Error getting user profile after creation:', retryError);
-            throw new Error('Failed to load user profile');
-          }
-        } catch (e) {
-          console.error('Error creating profile:', e);
-          setError('Error creating user profile');
-          setIsLoading(false);
-          return;
-        }
-      } else if (profileError) {
-        console.error('Error loading user profile:', profileError);
-        throw new Error('Failed to load user profile');
-      }
-      
-      // Загружаем данные параллельно
-      try {
-        const [balanceResponse, betsResponse] = await Promise.all([
-          // Загрузка баланса
-          supabase
-            .from('balances')
-            .select('amount')
-            .eq('user_id', user.id)
-            .eq('currency', 'coins')
-            .single(),
-            
-          // Загрузка ставок
-          supabase
-            .from('bets')
-            .select(`
-              *,
-              events:event_id (
-                title,
-                status,
-                result
-              )
-            `)
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false })
-        ]);
-        
-        // Обрабатываем результаты
-        if (!balanceResponse.error || balanceResponse.error.code === 'PGRST116') {
-          setBalance(balanceResponse.data?.amount || 0);
-        } else {
-          console.error('Error loading balance:', balanceResponse.error);
-        }
-        
-        if (!betsResponse.error) {
-          setUserBets(betsResponse.data || []);
-        } else {
-          console.error('Error loading bets:', betsResponse.error);
-        }
-      } catch (e) {
-        console.error('Error loading profile data:', e);
-        setError('Failed to load profile data');
-      }
-      
-    } catch (e) {
-      console.error('Exception in loadProfileData:', e);
-      setError((e as Error).message || 'Error loading profile data');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user, router, localeStr]);
-  
-  // Загружаем данные профиля при монтировании компонента
   useEffect(() => {
-    // Запускаем загрузку только если пользователь загружен и авторизован
-    if (!isAuthLoading && user) {
+    const loadProfileData = async () => {
+      if (!user) {
+        router.push(`/${localeStr}/auth/signin?redirectTo=/${localeStr}/profile`);
+        return;
+      }
+      
+      setIsLoading(true);
+      try {
+        const supabase = createClientComponentClient<Database>();
+        
+        // Упрощенная загрузка баланса и ставок
+        // Не пытаемся создать профиль здесь, это уже должно быть сделано в auth-context
+        
+        // Получаем баланс пользователя
+        const { data: balanceData, error: balanceError } = await supabase
+          .from('balances')
+          .select('amount')
+          .eq('user_id', user.id)
+          .eq('currency', 'coins')
+          .single();
+          
+        if (balanceError && balanceError.code !== 'PGRST116') {
+          console.error('Error loading balance:', balanceError);
+        } else {
+          setBalance(balanceData?.amount || 0);
+        }
+        
+        // Получаем ставки пользователя
+        const { data: betsData, error: betsError } = await supabase
+          .from('bets')
+          .select(`
+            *,
+            events:event_id (
+              title,
+              status,
+              result
+            )
+          `)
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+          
+        if (betsError) {
+          console.error('Error loading bets:', betsError);
+        } else {
+          setUserBets(betsData || []);
+        }
+      } catch (err) {
+        console.error('Error loading profile data:', err);
+        setError(err instanceof Error ? err.message : 'Ошибка загрузки данных профиля');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    if (user) {
       loadProfileData();
     }
-  }, [loadProfileData, user, isAuthLoading]);
+  }, [user, router, localeStr]);
   
   // Форматируем дату
   const formatDate = (dateStr: string) => {
@@ -240,9 +168,55 @@ export default function ProfilePage() {
         
         <Button onClick={() => {
           setError(null);
-          loadProfileData();
+          setIsLoading(true);
+          const loadData = async () => {
+            try {
+              const supabase = createClientComponentClient<Database>();
+              
+              // Получаем баланс пользователя
+              const { data: balanceData, error: balanceError } = await supabase
+                .from('balances')
+                .select('amount')
+                .eq('user_id', user!.id)
+                .eq('currency', 'coins')
+                .single();
+                
+              if (balanceError && balanceError.code !== 'PGRST116') {
+                console.error('Error loading balance:', balanceError);
+              } else {
+                setBalance(balanceData?.amount || 0);
+              }
+              
+              // Получаем ставки пользователя
+              const { data: betsData, error: betsError } = await supabase
+                .from('bets')
+                .select(`
+                  *,
+                  events:event_id (
+                    title,
+                    status,
+                    result
+                  )
+                `)
+                .eq('user_id', user!.id)
+                .order('created_at', { ascending: false });
+                
+              if (betsError) {
+                console.error('Error loading bets:', betsError);
+              } else {
+                setUserBets(betsData || []);
+              }
+            } catch (err) {
+              console.error('Error loading profile data:', err);
+              setError(err instanceof Error ? err.message : 'Ошибка загрузки данных профиля');
+            } finally {
+              setIsLoading(false);
+            }
+          };
+          
+          loadData();
         }}>
-          Retry Loading
+          {t('common.retry')}
         </Button>
       </div>
     );
@@ -255,22 +229,22 @@ export default function ProfilePage() {
   
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8">{t('profile.title')}</h1>
+      <h1 className="text-2xl font-bold mb-8">{t('profile.title')}</h1>
       
       <div className="grid gap-8">
         {/* Карточка профиля */}
         <Card>
-          <CardHeader className="pb-3">
+          <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <User className="h-5 w-5" />
-              {t('profile.personalInfo')}
+              {t('profile.profileInfo')}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid gap-4">
               <div>
                 <p className="text-sm text-muted-foreground">{t('profile.email')}</p>
-                <p className="font-medium">{user.email}</p>
+                <p className="font-medium">{user?.email}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">{t('profile.username')}</p>
