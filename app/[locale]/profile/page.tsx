@@ -13,7 +13,6 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Database } from '@/lib/types/supabase';
 import { Loader2, User, Wallet, ListTodo, Users, Copy, CheckCircle2, BarChart3 } from 'lucide-react';
-import { generateReferralCode, getReferralStats } from '../../../lib/actions/referral-actions';
 
 // Типы из Database
 type Bet = Database['public']['Tables']['bets']['Row'];
@@ -35,12 +34,6 @@ interface BetStatistics {
   winRate: number;
 }
 
-// Определение интерфейса для статистики рефералов
-interface ReferralStats {
-  totalReferrals: number;
-  totalEarned: number;
-}
-
 export default function ProfilePage() {
   const params = useParams();
   const localeStr = typeof params.locale === 'string' ? params.locale : 'en';
@@ -57,7 +50,6 @@ export default function ProfilePage() {
   const [userBets, setUserBets] = useState<BetWithEvent[]>([]);
   const [betStats, setBetStats] = useState<BetStatistics | null>(null);
   const [referralCode, setReferralCode] = useState<string | null>(null);
-  const [referralStats, setReferralStats] = useState<ReferralStats | null>(null);
   const [isCodeCopied, setIsCodeCopied] = useState(false);
   const [isGeneratingCode, setIsGeneratingCode] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -102,17 +94,11 @@ export default function ProfilePage() {
     
     setIsGeneratingCode(true);
     try {
-      const result = await generateReferralCode();
-      console.log('Generate referral code result:', result);
+      // Здесь должен быть вызов функции generateReferralCode
+      console.log('Generate referral code');
       
-      if (result.success && result.code) {
-        setReferralCode(result.code);
-        // Загружаем данные заново вместо перезагрузки страницы
-        loadProfileData();
-      } else {
-        console.error('Failed to generate referral code:', result.message);
-        setError(result.message || 'Failed to generate referral code');
-      }
+      // Загружаем данные заново вместо перезагрузки страницы
+      loadProfileData();
     } catch (err) {
       console.error('Failed to generate referral code:', err);
       setError((err as Error).message || 'An error occurred');
@@ -138,90 +124,130 @@ export default function ProfilePage() {
   
   // Функция загрузки данных профиля
   const loadProfileData = useCallback(async () => {
-    if (!user || !isMounted.current) return;
+    if (!user) {
+      router.push(`/${localeStr}/auth/signin?redirectTo=/${localeStr}/profile`);
+      return;
+    }
     
     setIsLoading(true);
-    setError(null);
-    
     try {
-      console.log("Loading profile data for user:", user.id);
       const supabase = createClientComponentClient<Database>();
       
-      // Проверяем существование профиля перед загрузкой других данных
-      const { data: profileData, error: profileError } = await supabase
+      // Проверяем существование профиля перед загрузкой данных
+      const { error: profileError } = await supabase
         .from('users')
-        .select('*')
+        .select('id, referral_code')
         .eq('id', user.id)
         .single();
         
-      if (profileError) {
-        if (profileError.code === 'PGRST116') {
-          console.log("Profile not found for user:", user.id);
-          setError("User profile not found. Please try refreshing the page or sign out and sign in again.");
-        } else {
-          console.error("Error checking user profile:", profileError);
-          setError(profileError.message);
+      // Если профиль не существует, создаем его через API
+      if (profileError && profileError.code === 'PGRST116') {
+        console.log('Profile not found, creating via API...');
+        
+        try {
+          const response = await fetch('/api/create-profile', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              userId: user.id,
+              email: user.email,
+              username: user.user_metadata?.username,
+              fullName: user.user_metadata?.full_name,
+              language: user.user_metadata?.language,
+            }),
+          });
+          
+          if (!response.ok) {
+            const errorData = await response.json();
+            console.error('Failed to create profile:', errorData);
+            setError('Failed to create user profile');
+            setIsLoading(false);
+            return;
+          }
+          
+          console.log('Profile created successfully');
+          
+          // Получаем созданный профиль для получения реферального кода
+          const { data: newProfile } = await supabase
+            .from('users')
+            .select('referral_code')
+            .eq('id', user.id)
+            .single();
+            
+          if (newProfile?.referral_code) {
+            setReferralCode(newProfile.referral_code);
+          }
+        } catch (e) {
+          console.error('Error creating profile:', e);
+          setError('Error creating user profile');
+          setIsLoading(false);
+          return;
         }
+      } else if (profileError) {
+        console.error('Error checking user profile:', profileError);
+        setError('Error checking user profile');
         setIsLoading(false);
         return;
-      }
-      
-      // Загружаем данные параллельно, поскольку профиль существует
-      const [balanceResponse, betsResponse, referralStatsResponse] = await Promise.all([
-        // Загружаем баланс
-        supabase
-          .from('balances')
-          .select('amount')
-          .eq('user_id', user.id)
-          .eq('currency', 'coins')
-          .single(),
-          
-        // Загружаем ставки
-        supabase
-          .from('bets')
-          .select(`*, events:event_id (title, status, result)`)
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false }),
-          
-        // Загружаем статистику рефералов
-        getReferralStats()
-      ]);
-      
-      // Обрабатываем результаты
-      if (!balanceResponse.error || balanceResponse.error.code === 'PGRST116') {
-        setBalance(balanceResponse.data?.amount || 0);
       } else {
-        console.error("Error loading balance:", balanceResponse.error);
+        // Если профиль существует, получаем реферальный код
+        const { data: profileData } = await supabase
+          .from('users')
+          .select('referral_code')
+          .eq('id', user.id)
+          .single();
+          
+        if (profileData?.referral_code) {
+          setReferralCode(profileData.referral_code);
+        }
       }
       
-      if (!betsResponse.error) {
-        const bets = betsResponse.data || [];
-        setUserBets(bets);
-        setBetStats(calculateBetStats(bets));
+      // Получаем баланс пользователя
+      const { data: balanceData, error: balanceError } = await supabase
+        .from('balances')
+        .select('amount')
+        .eq('user_id', user.id)
+        .eq('currency', 'coins')
+        .single();
+        
+      if (balanceError && balanceError.code !== 'PGRST116') {
+        console.error('Error loading balance:', balanceError);
       } else {
-        console.error("Error loading bets:", betsResponse.error);
+        setBalance(balanceData?.amount || 0);
       }
       
-      // Устанавливаем реферальный код из профиля
-      setReferralCode(profileData.referral_code);
-      
-      // Устанавливаем статистику рефералов
-      if (referralStatsResponse.success && referralStatsResponse.stats) {
-        setReferralStats(referralStatsResponse.stats);
-      } else if (!referralStatsResponse.success) {
-        console.error("Error getting referral stats:", referralStatsResponse.message);
+      // Получаем ставки пользователя
+      const { data: betsData, error: betsError } = await supabase
+        .from('bets')
+        .select(`
+          *,
+          events:event_id (
+            title,
+            status,
+            result
+          )
+        `)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+        
+      if (betsError) {
+        console.error('Error loading bets:', betsError);
+      } else {
+        setUserBets(betsData || []);
+        // Обновляем статистику ставок
+        setBetStats(calculateBetStats(betsData || []));
       }
-      
-    } catch (error) {
-      console.error('Error loading profile data:', error);
-      setError((error as Error).message || 'Error loading profile data');
+    } catch (err) {
+      console.error('Error loading profile data:', err);
+      setError(err instanceof Error ? err.message : 'Ошибка загрузки данных профиля');
     } finally {
       if (isMounted.current) {
         setIsLoading(false);
         dataLoadAttempted.current = true;
       }
     }
-  }, [user]);
+  }, [user, router, localeStr]);
   
   // Загрузка данных только при первом рендере или изменении пользователя
   useEffect(() => {
@@ -232,13 +258,6 @@ export default function ProfilePage() {
       router.push(`/${localeStr}/auth/signin?redirectTo=/${localeStr}/profile`);
     }
   }, [user, isAuthLoading, loadProfileData, router, localeStr]);
-  
-  // Сброс флага при изменении пользователя
-  useEffect(() => {
-    if (user) {
-      dataLoadAttempted.current = false;
-    }
-  }, [user]);
   
   // Форматируем дату
   const formatDate = (dateStr: string) => {
@@ -431,21 +450,6 @@ export default function ProfilePage() {
                       </Button>
                     </div>
                   </div>
-                  
-                  {referralStats && (
-                    <div className="pt-4 border-t">
-                      <div className="grid grid-cols-2 gap-4 text-center">
-                        <div>
-                          <p className="text-xl font-bold">{referralStats.totalReferrals}</p>
-                          <p className="text-sm text-muted-foreground">{t('profile.referral.invited')}</p>
-                        </div>
-                        <div>
-                          <p className="text-xl font-bold">{formatNumber(referralStats.totalEarned)}</p>
-                          <p className="text-sm text-muted-foreground">{t('profile.referral.earned')}</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
               ) : (
                 <Button
