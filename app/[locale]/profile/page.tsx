@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Database } from '@/lib/types/supabase';
-import { Loader2, User, Wallet, ListTodo, Users, Copy, CheckCircle2, BarChart3 } from 'lucide-react';
+import { User, Wallet, ListTodo, Loader2, Copy, CheckCircle2, Users, BarChart3 } from 'lucide-react';
 
 // Типы из Database
 type Bet = Database['public']['Tables']['bets']['Row'];
@@ -125,20 +125,30 @@ export default function ProfilePage() {
   // Функция загрузки данных профиля
   const loadProfileData = useCallback(async () => {
     if (!user) {
+      console.log("No user in loadProfileData, redirecting");
       router.push(`/${localeStr}/auth/signin?redirectTo=/${localeStr}/profile`);
       return;
     }
     
+    // Устанавливаем флаг, что попытка загрузки была сделана
+    dataLoadAttempted.current = true;
+    
     setIsLoading(true);
+    setError(null);
+    
     try {
+      console.log("Starting to load profile data for user:", user.id);
       const supabase = createClientComponentClient<Database>();
       
       // Проверяем существование профиля перед загрузкой данных
-      const { error: profileError } = await supabase
+      console.log("Checking if profile exists for user:", user.id);
+      const { data: profileData, error: profileError } = await supabase
         .from('users')
         .select('id, referral_code')
         .eq('id', user.id)
         .single();
+      
+      console.log("Profile check result:", { profileData, profileError });
         
       // Если профиль не существует, создаем его через API
       if (profileError && profileError.code === 'PGRST116') {
@@ -159,9 +169,11 @@ export default function ProfilePage() {
             }),
           });
           
+          const responseData = await response.json();
+          console.log("Profile creation response:", responseData);
+          
           if (!response.ok) {
-            const errorData = await response.json();
-            console.error('Failed to create profile:', errorData);
+            console.error('Failed to create profile:', responseData);
             setError('Failed to create user profile');
             setIsLoading(false);
             return;
@@ -169,12 +181,17 @@ export default function ProfilePage() {
           
           console.log('Profile created successfully');
           
+          // Даем время БД на обновление
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
           // Получаем созданный профиль для получения реферального кода
-          const { data: newProfile } = await supabase
+          const { data: newProfile, error: newProfileError } = await supabase
             .from('users')
             .select('referral_code')
             .eq('id', user.id)
             .single();
+          
+          console.log("New profile fetch result:", { newProfile, newProfileError });
             
           if (newProfile?.referral_code) {
             setReferralCode(newProfile.referral_code);
@@ -190,74 +207,105 @@ export default function ProfilePage() {
         setError('Error checking user profile');
         setIsLoading(false);
         return;
-      } else {
+      } else if (profileData) {
+        console.log("Profile exists:", profileData);
         // Если профиль существует, получаем реферальный код
-        const { data: profileData } = await supabase
-          .from('users')
-          .select('referral_code')
-          .eq('id', user.id)
-          .single();
-          
-        if (profileData?.referral_code) {
+        if (profileData.referral_code) {
           setReferralCode(profileData.referral_code);
         }
       }
       
-      // Получаем баланс пользователя
-      const { data: balanceData, error: balanceError } = await supabase
-        .from('balances')
-        .select('amount')
-        .eq('user_id', user.id)
-        .eq('currency', 'coins')
-        .single();
+      // Загружаем данные параллельно
+      console.log("Loading balance and bets data");
+      try {
+        const [balanceResponse, betsResponse] = await Promise.all([
+          // Получаем баланс пользователя
+          supabase
+            .from('balances')
+            .select('amount')
+            .eq('user_id', user.id)
+            .eq('currency', 'coins')
+            .single(),
+            
+          // Получаем ставки пользователя
+          supabase
+            .from('bets')
+            .select(`
+              *,
+              events:event_id (
+                title,
+                status,
+                result
+              )
+            `)
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+        ]);
         
-      if (balanceError && balanceError.code !== 'PGRST116') {
-        console.error('Error loading balance:', balanceError);
-      } else {
-        setBalance(balanceData?.amount || 0);
-      }
-      
-      // Получаем ставки пользователя
-      const { data: betsData, error: betsError } = await supabase
-        .from('bets')
-        .select(`
-          *,
-          events:event_id (
-            title,
-            status,
-            result
-          )
-        `)
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+        console.log("Data loading results:", { 
+          balanceResponse: { data: balanceResponse.data, error: balanceResponse.error },
+          betsResponse: { count: betsResponse.data?.length, error: betsResponse.error }
+        });
         
-      if (betsError) {
-        console.error('Error loading bets:', betsError);
-      } else {
-        setUserBets(betsData || []);
-        // Обновляем статистику ставок
-        setBetStats(calculateBetStats(betsData || []));
+        if (balanceResponse.error && balanceResponse.error.code !== 'PGRST116') {
+          console.error('Error loading balance:', balanceResponse.error);
+        } else {
+          setBalance(balanceResponse.data?.amount || 0);
+        }
+        
+        if (betsResponse.error) {
+          console.error('Error loading bets:', betsResponse.error);
+        } else {
+          const bets = betsResponse.data || [];
+          setUserBets(bets);
+          setBetStats(calculateBetStats(bets));
+        }
+      } catch (err) {
+        console.error('Error loading balance or bets data:', err);
+        // Не прерываем выполнение, чтобы хотя бы частично отобразить данные
       }
     } catch (err) {
-      console.error('Error loading profile data:', err);
+      console.error('Error in loadProfileData:', err);
       setError(err instanceof Error ? err.message : 'Ошибка загрузки данных профиля');
     } finally {
       if (isMounted.current) {
+        console.log("Profile data loading completed");
         setIsLoading(false);
-        dataLoadAttempted.current = true;
       }
     }
   }, [user, router, localeStr]);
   
   // Загрузка данных только при первом рендере или изменении пользователя
   useEffect(() => {
+    // Сбрасываем флаг при изменении пользователя
+    if (user) {
+      dataLoadAttempted.current = false;
+    }
+    
     // Защита от перезагрузки при потере фокуса вкладки
     if (!isAuthLoading && user && !dataLoadAttempted.current) {
+      console.log("Loading profile data for user:", user.id);
       loadProfileData();
     } else if (!isAuthLoading && !user) {
+      console.log("User not authenticated, redirecting to login");
       router.push(`/${localeStr}/auth/signin?redirectTo=/${localeStr}/profile`);
+    } else if (isAuthLoading) {
+      console.log("Auth is loading, waiting...");
     }
   }, [user, isAuthLoading, loadProfileData, router, localeStr]);
+  
+  // Добавляем обработчик ошибок для отладки
+  useEffect(() => {
+    const handleError = (event: ErrorEvent) => {
+      console.error("Unhandled error:", event.error);
+    };
+    
+    window.addEventListener('error', handleError);
+    
+    return () => {
+      window.removeEventListener('error', handleError);
+    };
+  }, []);
   
   // Форматируем дату
   const formatDate = (dateStr: string) => {
@@ -293,10 +341,11 @@ export default function ProfilePage() {
     }
   };
   
+  // Отображение загрузки
   if (isLoading || isAuthLoading) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <Skeleton className="h-10 w-48 mb-8" />
+        <h1 className="text-2xl font-bold mb-8">{isAuthLoading ? t('profile.checkingAuth') : t('profile.loading')}</h1>
         
         <div className="grid gap-8">
           <Skeleton className="h-40 w-full rounded-lg" />
@@ -306,9 +355,12 @@ export default function ProfilePage() {
     );
   }
   
+  // Отображение ошибки
   if (error) {
     return (
       <div className="container mx-auto px-4 py-8">
+        <h1 className="text-2xl font-bold mb-8">{t('profile.error')}</h1>
+        
         <Alert variant="destructive" className="mb-6">
           <AlertDescription>
             {error}
@@ -316,18 +368,29 @@ export default function ProfilePage() {
         </Alert>
         
         <Button onClick={() => {
+          console.log("Retrying profile data loading");
           setError(null);
-          dataLoadAttempted.current = false;
+          setIsLoading(true);
+          dataLoadAttempted.current = false; // Сбрасываем флаг, чтобы разрешить повторную загрузку
           loadProfileData();
         }}>
-          Retry Loading
+          {t('common.retry')}
         </Button>
       </div>
     );
   }
   
+  // Если пользователь не найден и не идет загрузка
   if (!user) {
-    return null;
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="text-2xl font-bold mb-8">{t('profile.notAuthenticated')}</h1>
+        <p>{t('profile.pleaseSignIn')}</p>
+        <Button className="mt-4" onClick={() => router.push(`/${localeStr}/auth/signin?redirectTo=/${localeStr}/profile`)}>
+          {t('nav.signin')}
+        </Button>
+      </div>
+    );
   }
   
   return (
