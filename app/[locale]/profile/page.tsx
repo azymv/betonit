@@ -1,3 +1,4 @@
+// app/[locale]/profile/page.tsx
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -8,37 +9,31 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Database } from '@/lib/types/supabase';
-import { Loader2, User, Wallet, ListTodo, Users, Copy, CheckCircle2, BarChart3 } from 'lucide-react';
-import { generateReferralCode, getReferralStats } from '../../../lib/actions/referral-actions';
-
-// Типы из Database
-type Bet = Database['public']['Tables']['bets']['Row'];
+import { Loader2, User, Wallet, ListTodo } from 'lucide-react';
 
 // Определение типа для события объединенного с таблицей events
-interface BetWithEvent extends Bet {
+interface BetWithEvent {
+  id: string;
+  user_id: string;
+  event_id: string;
+  amount: number;
+  currency: string;
+  prediction: boolean;
+  odds: number;
+  potential_payout: number;
+  platform_fee: number;
+  status: "pending" | "active" | "won" | "lost" | "cancelled";
+  created_at: string;
+  updated_at: string | null;
   events?: {
     title: string;
     status: string;
     result: boolean | null;
   };
-}
-
-// Определение интерфейса для статистики ставок
-interface BetStatistics {
-  total: number;
-  won: number;
-  lost: number;
-  winRate: number;
-}
-
-// Определение интерфейса для статистики рефералов
-interface ReferralStats {
-  totalReferrals: number;
-  totalEarned: number;
 }
 
 export default function ProfilePage() {
@@ -50,123 +45,14 @@ export default function ProfilePage() {
   
   const [balance, setBalance] = useState<number | null>(null);
   const [userBets, setUserBets] = useState<BetWithEvent[]>([]);
-  const [betStats, setBetStats] = useState<BetStatistics | null>(null);
-  const [referralCode, setReferralCode] = useState<string | null>(null);
-  const [referralStats, setReferralStats] = useState<ReferralStats | null>(null);
-  const [isCodeCopied, setIsCodeCopied] = useState(false);
-  const [isGeneratingCode, setIsGeneratingCode] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [profileCreationAttempted, setProfileCreationAttempted] = useState(false);
-  const [referralLink, setReferralLink] = useState<string>('');
-  
-  // Обновляем реферальную ссылку при изменении кода
-  useEffect(() => {
-    if (referralCode && typeof window !== 'undefined') {
-      setReferralLink(`${window.location.origin}/${localeStr}/auth/signup?ref=${referralCode}`);
-    }
-  }, [referralCode, localeStr]);
-  
-  // Функция для копирования реферальной ссылки
-  const copyReferralLink = () => {
-    if (!referralLink) return;
-    
-    navigator.clipboard.writeText(referralLink)
-      .then(() => {
-        setIsCodeCopied(true);
-        setTimeout(() => setIsCodeCopied(false), 2000);
-      })
-      .catch(err => {
-        console.error('Failed to copy: ', err);
-      });
-  };
-  
-  // Функция для генерации реферального кода
-  const handleGenerateCode = async () => {
-    if (isGeneratingCode) return;
-    
-    setIsGeneratingCode(true);
-    try {
-      const result = await generateReferralCode();
-      console.log('Generate referral code result:', result);
-      
-      if (result.success && result.code) {
-        setReferralCode(result.code);
-        setTimeout(() => {
-          setIsGeneratingCode(false);
-          // Перезагружаем данные вместо перезагрузки страницы
-          loadProfileData();
-        }, 1000);
-      } else {
-        console.error('Failed to generate referral code:', result.message);
-        setError(result.message || 'Failed to generate referral code');
-        setIsGeneratingCode(false);
-      }
-    } catch (err) {
-      console.error('Failed to generate referral code:', err);
-      setError((err as Error).message || 'An error occurred');
-      setIsGeneratingCode(false);
-    }
-  };
-  
-  // Вычисление статистики ставок
-  const calculateBetStats = (bets: BetWithEvent[]): BetStatistics => {
-    const total = bets.length;
-    const won = bets.filter(bet => bet.status === 'won').length;
-    const lost = bets.filter(bet => bet.status === 'lost').length;
-    const winRate = total > 0 ? (won / total) * 100 : 0;
-    
-    return {
-      total,
-      won,
-      lost,
-      winRate
-    };
-  };
-  
-  // Функция для создания профиля через API
-  const createProfile = useCallback(async () => {
-    if (!user || profileCreationAttempted) return false;
-    
-    try {
-      setProfileCreationAttempted(true);
-      
-      console.log('Creating user profile via API...');
-      const response = await fetch('/api/create-profile', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId: user.id,
-          email: user.email,
-          username: user.user_metadata?.username,
-          fullName: user.user_metadata?.full_name,
-          language: user.user_metadata?.language,
-        }),
-      });
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        console.error('Failed to create user profile:', data);
-        setError(data.error || 'Failed to create user profile');
-        return false;
-      }
-      
-      console.log('Profile creation result:', data);
-      return true;
-    } catch (err) {
-      console.error('Exception creating profile:', err);
-      setError((err as Error).message || 'An error occurred');
-      return false;
-    }
-  }, [user, profileCreationAttempted]);
   
   // Функция загрузки данных профиля
   const loadProfileData = useCallback(async () => {
+    // Если пользователь не авторизован, прекращаем выполнение
     if (!user) {
-      router.push(`/${localeStr}/auth/signin?redirectTo=profile`);
+      router.push(`/${localeStr}/auth/signin?redirectTo=/${localeStr}/profile`);
       return;
     }
     
@@ -176,95 +62,123 @@ export default function ProfilePage() {
     try {
       const supabase = createClientComponentClient<Database>();
       
-      // Проверяем существование профиля
-      const { data: profileData, error: profileError } = await supabase
+      // Загружаем данные пользователя
+      const { error: profileError } = await supabase
         .from('users')
         .select('*')
         .eq('id', user.id)
         .single();
-        
-      // Если профиль не существует
+      
+      // Если профиль не существует, создаем его через API
       if (profileError && profileError.code === 'PGRST116') {
-        console.log('User profile not found, attempting to create...');
+        console.log('Profile not found, creating...');
         
-        // Пытаемся создать профиль
-        const created = await createProfile();
-        if (!created) {
+        try {
+          const response = await fetch('/api/create-profile', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              userId: user.id,
+              email: user.email,
+              username: user.user_metadata?.username,
+              fullName: user.user_metadata?.full_name,
+              language: user.user_metadata?.language,
+            }),
+          });
+          
+          if (!response.ok) {
+            const errorData = await response.json();
+            console.error('Failed to create profile:', errorData);
+            setError('Failed to create user profile');
+            setIsLoading(false);
+            return;
+          }
+          
+          // Даем время БД на обновление
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+          // Повторно пытаемся загрузить данные после создания профиля
+          const { error: retryError } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', user.id)
+            .single();
+            
+          if (retryError) {
+            console.error('Error getting user profile after creation:', retryError);
+            throw new Error('Failed to load user profile');
+          }
+        } catch (e) {
+          console.error('Error creating profile:', e);
+          setError('Error creating user profile');
           setIsLoading(false);
           return;
         }
-        
-        // Даем время БД обновиться
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Повторно загружаем данные
-        loadProfileData();
-        return;
       } else if (profileError) {
-        throw profileError;
+        console.error('Error loading user profile:', profileError);
+        throw new Error('Failed to load user profile');
       }
       
-      // Загружаем остальные данные параллельно
-      const [balanceResponse, betsResponse, referralCodeResponse, referralStatsResponse] = await Promise.all([
-        // Загрузка баланса
-        supabase
-          .from('balances')
-          .select('amount')
-          .eq('user_id', user.id)
-          .eq('currency', 'coins')
-          .single(),
-          
-        // Загрузка ставок
-        supabase
-          .from('bets')
-          .select(`
-            *,
-            events:event_id (
-              title,
-              status,
-              result
-            )
-          `)
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false }),
-          
-        // Получаем реферальный код из профиля
-        Promise.resolve({ data: profileData }),
+      // Загружаем данные параллельно
+      try {
+        const [balanceResponse, betsResponse] = await Promise.all([
+          // Загрузка баланса
+          supabase
+            .from('balances')
+            .select('amount')
+            .eq('user_id', user.id)
+            .eq('currency', 'coins')
+            .single(),
+            
+          // Загрузка ставок
+          supabase
+            .from('bets')
+            .select(`
+              *,
+              events:event_id (
+                title,
+                status,
+                result
+              )
+            `)
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+        ]);
         
-        // Загрузка статистики рефералов
-        getReferralStats()
-      ]);
-      
-      // Обрабатываем результаты
-      if (!balanceResponse.error || balanceResponse.error.code === 'PGRST116') {
-        setBalance(balanceResponse.data?.amount || 0);
+        // Обрабатываем результаты
+        if (!balanceResponse.error || balanceResponse.error.code === 'PGRST116') {
+          setBalance(balanceResponse.data?.amount || 0);
+        } else {
+          console.error('Error loading balance:', balanceResponse.error);
+        }
+        
+        if (!betsResponse.error) {
+          setUserBets(betsResponse.data || []);
+        } else {
+          console.error('Error loading bets:', betsResponse.error);
+        }
+      } catch (e) {
+        console.error('Error loading profile data:', e);
+        setError('Failed to load profile data');
       }
       
-      if (!betsResponse.error) {
-        setUserBets(betsResponse.data || []);
-        setBetStats(calculateBetStats(betsResponse.data || []));
-      }
-      
-      setReferralCode(referralCodeResponse.data?.referral_code || '');
-      
-      if (referralStatsResponse.success && referralStatsResponse.stats) {
-        setReferralStats(referralStatsResponse.stats);
-      }
-      
-    } catch (error) {
-      console.error('Error loading profile data:', error);
-      setError((error as Error).message || 'Error loading profile data');
+    } catch (e) {
+      console.error('Exception in loadProfileData:', e);
+      setError((e as Error).message || 'Error loading profile data');
     } finally {
       setIsLoading(false);
     }
-  }, [user, router, localeStr, createProfile]);
+  }, [user, router, localeStr]);
   
-  // Загрузка данных при монтировании и изменении пользователя
+  // Загружаем данные профиля при монтировании компонента
   useEffect(() => {
+    // Запускаем загрузку только если пользователь загружен и авторизован
     if (!isAuthLoading && user) {
       loadProfileData();
     }
-  }, [user, isAuthLoading, loadProfileData]);
+  }, [loadProfileData, user, isAuthLoading]);
   
   // Форматируем дату
   const formatDate = (dateStr: string) => {
@@ -326,7 +240,6 @@ export default function ProfilePage() {
         
         <Button onClick={() => {
           setError(null);
-          setProfileCreationAttempted(false);
           loadProfileData();
         }}>
           Retry Loading
@@ -344,231 +257,110 @@ export default function ProfilePage() {
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-8">{t('profile.title')}</h1>
       
-      <div className="grid md:grid-cols-3 gap-8">
-        {/* Левая колонка с информацией о пользователе и статистикой */}
-        <div className="md:col-span-1">
-          {/* Карточка профиля */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2">
-                <User className="h-5 w-5" />
-                {t('profile.personalInfo')}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">{t('profile.email')}</p>
-                  <p className="font-medium">{user.email}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">{t('profile.username')}</p>
-                  <p className="font-medium">{user.user_metadata?.username || t('profile.notSet')}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">{t('profile.fullName')}</p>
-                  <p className="font-medium">{user.user_metadata?.full_name || t('profile.notSet')}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">{t('profile.balance')}</p>
-                  <p className="font-medium text-xl text-primary">
-                    {formatNumber(balance || 0)} {t('common.coins')}
-                  </p>
-                </div>
+      <div className="grid gap-8">
+        {/* Карточка профиля */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2">
+              <User className="h-5 w-5" />
+              {t('profile.personalInfo')}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-muted-foreground">{t('profile.email')}</p>
+                <p className="font-medium">{user.email}</p>
               </div>
-            </CardContent>
-          </Card>
+              <div>
+                <p className="text-sm text-muted-foreground">{t('profile.username')}</p>
+                <p className="font-medium">{user.user_metadata?.username || t('profile.notSet')}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">{t('profile.fullName')}</p>
+                <p className="font-medium">{user.user_metadata?.full_name || t('profile.notSet')}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">{t('profile.balance')}</p>
+                <p className="font-medium text-xl text-primary">
+                  {formatNumber(balance || 0)} {t('common.coins')}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        {/* Вкладки */}
+        <Tabs defaultValue="bets">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="bets" className="flex items-center gap-2">
+              <ListTodo className="h-4 w-4" />
+              {t('profile.myBets')}
+            </TabsTrigger>
+            <TabsTrigger value="transactions" className="flex items-center gap-2">
+              <Wallet className="h-4 w-4" />
+              {t('profile.transactions')}
+            </TabsTrigger>
+          </TabsList>
           
-          {/* Статистика ставок */}
-          {betStats && (
-            <Card className="mt-6">
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2">
-                  <BarChart3 className="h-5 w-5" />
-                  {t('profile.stats.title')}
-                </CardTitle>
+          {/* Вкладка со ставками */}
+          <TabsContent value="bets">
+            <Card>
+              <CardHeader>
+                <CardTitle>{t('profile.betsHistory')}</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-3 gap-4 text-center">
-                  <div>
-                    <p className="text-2xl font-bold">{betStats.total}</p>
-                    <p className="text-sm text-muted-foreground">{t('profile.stats.total')}</p>
+                {userBets.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground">{t('profile.noBets')}</p>
                   </div>
-                  <div>
-                    <p className="text-2xl font-bold text-green-600">{betStats.won}</p>
-                    <p className="text-sm text-muted-foreground">{t('profile.stats.won')}</p>
+                ) : (
+                  <div className="space-y-4">
+                    {userBets.map((bet) => (
+                      <div key={bet.id} className="border p-4 rounded-lg">
+                        <div className="flex justify-between mb-2">
+                          <div>
+                            <h3 className="font-medium">{bet.events?.title}</h3>
+                            <p className="text-sm text-muted-foreground">
+                              {t('events.yourBet')}: {bet.prediction ? t('common.yes') : t('common.no')}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            {getBetStatusBadge(bet)}
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {formatDate(bet.created_at)}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span>{t('events.amount')}: {formatNumber(bet.amount)} {t('common.coins')}</span>
+                          <span>
+                            {t('events.potentialWinnings')}: {formatNumber(bet.potential_payout)} {t('common.coins')}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  <div>
-                    <p className="text-2xl font-bold text-red-600">{betStats.lost}</p>
-                    <p className="text-sm text-muted-foreground">{t('profile.stats.lost')}</p>
-                  </div>
-                </div>
-                
-                <div className="mt-4">
-                  <p className="text-sm text-muted-foreground mb-1">{t('profile.stats.accuracy')}</p>
-                  <div className="w-full bg-slate-200 h-2 rounded-full">
-                    <div
-                      className="bg-green-500 h-2 rounded-full"
-                      style={{ width: `${betStats.winRate}%` }}
-                    />
-                  </div>
-                  <p className="text-sm mt-1">
-                    {Math.round(betStats.winRate)}%
-                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          {/* Вкладка с транзакциями */}
+          <TabsContent value="transactions">
+            <Card>
+              <CardHeader>
+                <CardTitle>{t('profile.transactionsHistory')}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+                  <p className="text-muted-foreground">{t('profile.comingSoon')}</p>
                 </div>
               </CardContent>
             </Card>
-          )}
-          
-          {/* Реферальная программа */}
-          <Card className="mt-6 relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-r from-pink-500/10 via-purple-500/10 to-indigo-500/10 bg-[size:400%_400%] animate-gradient" />
-            <div className="absolute inset-0 bg-gradient-to-r from-pink-500/10 via-purple-500/10 to-indigo-500/10 bg-[size:400%_400%] blur-xl animate-gradient" />
-            <CardHeader className="pb-3 relative">
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                {t('profile.referral.title')}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="relative">
-              <p className="text-sm mb-4">
-                {t('profile.referral.description')}
-              </p>
-              
-              {referralCode ? (
-                <div className="space-y-4">
-                  <div className="relative">
-                    <p className="text-sm text-muted-foreground mb-1">{t('profile.referral.yourLink')}</p>
-                    <div className="flex">
-                      <input
-                        type="text"
-                        readOnly
-                        value={referralLink}
-                        className="w-full p-2 border rounded-l-md bg-muted"
-                      />
-                      <Button 
-                        variant="secondary" 
-                        size="sm" 
-                        className="rounded-l-none"
-                        onClick={copyReferralLink}
-                      >
-                        {isCodeCopied ? (
-                          <CheckCircle2 className="h-4 w-4" />
-                        ) : (
-                          <Copy className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                  
-                  {referralStats && (
-                    <div className="pt-4 border-t">
-                      <div className="grid grid-cols-2 gap-4 text-center">
-                        <div>
-                          <p className="text-xl font-bold">{referralStats.totalReferrals}</p>
-                          <p className="text-sm text-muted-foreground">{t('profile.referral.invited')}</p>
-                        </div>
-                        <div>
-                          <p className="text-xl font-bold">{formatNumber(referralStats.totalEarned)}</p>
-                          <p className="text-sm text-muted-foreground">{t('profile.referral.earned')}</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <Button
-                  className="w-full"
-                  onClick={handleGenerateCode}
-                  disabled={isGeneratingCode}
-                >
-                  {isGeneratingCode ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      {t('profile.referral.generating')}
-                    </>
-                  ) : (
-                    t('profile.referral.getLink')
-                  )}
-                </Button>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-        
-        {/* Правая колонка с вкладками */}
-        <div className="md:col-span-2">
-          <Tabs defaultValue="bets">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="bets" className="flex items-center gap-2">
-                <ListTodo className="h-4 w-4" />
-                {t('profile.myBets')}
-              </TabsTrigger>
-              <TabsTrigger value="transactions" className="flex items-center gap-2">
-                <Wallet className="h-4 w-4" />
-                {t('profile.transactions')}
-              </TabsTrigger>
-            </TabsList>
-            
-            {/* Вкладка со ставками */}
-            <TabsContent value="bets">
-              <Card>
-                <CardHeader>
-                  <CardTitle>{t('profile.betsHistory')}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {userBets.length === 0 ? (
-                    <div className="text-center py-8">
-                      <p className="text-muted-foreground">{t('profile.noBets')}</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {userBets.map((bet) => (
-                        <div key={bet.id} className="border p-4 rounded-lg">
-                          <div className="flex justify-between mb-2">
-                            <div>
-                              <h3 className="font-medium">{bet.events?.title}</h3>
-                              <p className="text-sm text-muted-foreground">
-                                {t('events.yourBet')}: {bet.prediction ? t('common.yes') : t('common.no')}
-                              </p>
-                            </div>
-                            <div className="text-right">
-                              {getBetStatusBadge(bet)}
-                              <p className="text-sm text-muted-foreground mt-1">
-                                {formatDate(bet.created_at)}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span>{t('events.amount')}: {formatNumber(bet.amount)} {t('common.coins')}</span>
-                            <span>
-                              {t('events.potentialWinnings')}: {formatNumber(bet.potential_payout)} {t('common.coins')}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-            
-            {/* Вкладка с транзакциями */}
-            <TabsContent value="transactions">
-              <Card>
-                <CardHeader>
-                  <CardTitle>{t('profile.transactionsHistory')}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
-                    <p className="text-muted-foreground">{t('profile.comingSoon')}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
-        </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

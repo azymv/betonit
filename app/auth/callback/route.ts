@@ -34,26 +34,29 @@ export async function GET(request: NextRequest) {
       if (data.user) {
         console.log("User authenticated:", data.user.id);
         
-        // Попробуем получить сохраненный referrerId из метаданных или запросить по коду
-        let referredBy = data.user.user_metadata?.referred_by;
+        // Получаем параметр ref из URL, если он есть
+        const referralCode = requestUrl.searchParams.get('ref');
+        let referrerId = null;
         
-        // Если реферера нет в метаданных, попробуем найти в БД по коду из запроса
-        if (!referredBy) {
-          const referralCode = requestUrl.searchParams.get('ref') || '';
-          if (referralCode) {
-            try {
-              const { data: referrerData } = await supabase
-                .from('users')
-                .select('id')
-                .eq('referral_code', referralCode)
-                .single();
-                
-              if (referrerData) {
-                referredBy = referrerData.id;
-              }
-            } catch (err) {
-              console.error("Error finding referrer by code:", err);
+        // Если есть реферальный код, ищем пользователя
+        if (referralCode) {
+          try {
+            const { data: referrerData } = await supabase
+              .from('users')
+              .select('id')
+              .eq('referral_code', referralCode)
+              .single();
+              
+            if (referrerData) {
+              referrerId = referrerData.id;
+              
+              // Обновляем метаданные пользователя
+              await supabase.auth.updateUser({
+                data: { referred_by: referrerId }
+              });
             }
+          } catch (err) {
+            console.error("Error finding referrer:", err);
           }
         }
         
@@ -64,7 +67,7 @@ export async function GET(request: NextRequest) {
             username: data.user.user_metadata?.username,
             full_name: data.user.user_metadata?.full_name,
             language: data.user.user_metadata?.language,
-            referred_by: referredBy,
+            referred_by: referrerId || data.user.user_metadata?.referred_by,
           });
           
           if (result.error) {

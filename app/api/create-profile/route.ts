@@ -44,7 +44,6 @@ export async function POST(request: NextRequest) {
       username: userData.username || session.user.user_metadata?.username,
       full_name: userData.fullName || session.user.user_metadata?.full_name,
       language: userData.language || session.user.user_metadata?.language || 'en',
-      referred_by: userData.referredBy || session.user.user_metadata?.referred_by,
     });
     
     if (result.error) {

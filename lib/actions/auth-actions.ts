@@ -93,6 +93,7 @@ export async function createUserProfile(userId: string, userData: {
     
     // If user was referred, process the referral reward
     if (userData.referred_by) {
+      console.log(`User was referred by ${userData.referred_by}, processing reward...`);
       try {
         await processReferralReward(userData.referred_by, userId);
       } catch (error) {

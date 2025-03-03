@@ -47,7 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!currentUser) return;
     
     try {
-      const { error } = await supabase
+      const { data: profileData, error } = await supabase
         .from('users')
         .select('id')
         .eq('id', currentUser.id)
@@ -69,22 +69,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               username: currentUser.user_metadata?.username,
               fullName: currentUser.user_metadata?.full_name,
               language: currentUser.user_metadata?.language,
-              referredBy: currentUser.user_metadata?.referred_by,
             }),
           });
           
+          const result = await response.json();
+          
           if (!response.ok) {
-            const errorData = await response.json();
-            console.error('Error creating user profile from auth context:', errorData);
+            console.error('Error creating user profile from auth context:', result.error);
           } else {
             console.log('Successfully created user profile from auth context');
           }
         } catch (err) {
           console.error('Exception creating profile from auth context:', err);
         }
+      } else if (error) {
+        console.error('Error checking user profile:', error);
+      } else {
+        console.log('User profile already exists:', profileData?.id);
       }
     } catch (err) {
-      console.error('Error checking user profile:', err);
+      console.error('Exception checking user profile:', err);
     }
   };
 
@@ -148,18 +152,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       
       if (error) {
-        console.error("Sign in error:", error);
         return { error };
       }
       
-      if (!data.session || !data.user) {
-        console.error("No session or user data after sign in");
-        return { error: new Error('No session data') };
+      // Проверяем и создаем профиль при входе
+      if (data.user) {
+        await ensureUserProfile(data.user);
       }
       
       return { error: null };
     } catch (error) {
-      console.error("Exception during sign in:", error);
       return { error: error as Error };
     } finally {
       setIsLoading(false);
