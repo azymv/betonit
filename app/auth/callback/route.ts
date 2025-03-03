@@ -45,6 +45,7 @@ export async function GET(request: NextRequest) {
             username: data.user.user_metadata?.username,
             full_name: data.user.user_metadata?.full_name,
             language: data.user.user_metadata?.language,
+            referred_by: data.user.user_metadata?.referred_by || null,
           });
           
           if (result.error) {

@@ -1,4 +1,3 @@
-// page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -107,7 +106,7 @@ export default function ProfilePage() {
   useEffect(() => {
     const loadProfileData = async () => {
       if (!user) {
-        router.push(`/${localeStr}/auth/signin?redirectTo=/${localeStr}/profile`);
+        router.push(`/${localeStr}/auth/signin?redirectTo=profile`);
         return;
       }
       

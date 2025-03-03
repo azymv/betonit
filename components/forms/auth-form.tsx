@@ -1,7 +1,7 @@
-'use client';
+// components/forms/auth-form.tsx
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useAuth } from '@/lib/context/auth-context';
@@ -15,6 +15,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2 } from 'lucide-react';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { Database } from '@/lib/types/supabase';
 
 interface AuthFormProps {
   type: 'signin' | 'signup';
@@ -33,12 +35,46 @@ export function AuthForm({ type, redirectPath = '/' }: AuthFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [referrerId, setReferrerId] = useState<string | null>(null);
   
   const { signIn, signUp } = useAuth();
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const locale = params.locale as string;
   const { t } = useTranslation(locale);
+  
+  // Получаем и обрабатываем реферальный код из URL
+  useEffect(() => {
+    const referralCode = searchParams.get('ref');
+    
+    const fetchReferrer = async () => {
+      if (referralCode && type === 'signup') {
+        try {
+          setIsLoading(true);
+          const supabase = createClientComponentClient<Database>();
+          const { data, error } = await supabase
+            .from('users')
+            .select('id')
+            .eq('referral_code', referralCode)
+            .single();
+            
+          if (!error && data) {
+            setReferrerId(data.id);
+            console.log(`Found referrer: ${data.id} for code: ${referralCode}`);
+          } else {
+            console.error('Error or no data when fetching referrer:', error);
+          }
+        } catch (error) {
+          console.error('Exception when fetching referrer:', error);
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    };
+    
+    fetchReferrer();
+  }, [searchParams, type]);
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -89,7 +125,8 @@ export function AuthForm({ type, redirectPath = '/' }: AuthFormProps) {
           {
             username: formData.username,
             full_name: formData.full_name,
-            language: formData.language
+            language: formData.language,
+            referred_by: referrerId // Добавляем ID реферера
           }
         );
         if (error) {
@@ -106,6 +143,8 @@ export function AuthForm({ type, redirectPath = '/' }: AuthFormProps) {
     }
   };
   
+  // Остальной код компонента без изменений
+  
   return (
     <Card className="w-full max-w-md mx-auto">
       <CardHeader>
@@ -117,6 +156,14 @@ export function AuthForm({ type, redirectPath = '/' }: AuthFormProps) {
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {referrerId && type === 'signup' && (
+          <Alert className="mb-4 bg-green-50 text-green-800 border-green-200">
+            <AlertDescription>
+              {t('auth.signup.referralApplied')}
+            </AlertDescription>
+          </Alert>
+        )}
+        
         {error && (
           <Alert variant="destructive" className="mb-4">
             <AlertDescription>{error}</AlertDescription>
@@ -131,6 +178,7 @@ export function AuthForm({ type, redirectPath = '/' }: AuthFormProps) {
           </Alert>
         ) : (
           <form onSubmit={handleSubmit}>
+            {/* Остальной код формы без изменений */}
             <div className="space-y-4">
               {type === 'signup' && (
                 <>
@@ -234,7 +282,7 @@ export function AuthForm({ type, redirectPath = '/' }: AuthFormProps) {
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {t('auth.signin.loading')}
+                    {type === 'signin' ? t('auth.signin.loading') : t('auth.signup.loading')}
                   </>
                 ) : (
                   type === 'signin' ? t('auth.signin.submit') : t('auth.signup.submit')

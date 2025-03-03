@@ -17,6 +17,7 @@ interface AuthContextType {
     username?: string;
     full_name?: string;
     language?: string;
+    referred_by?: string | null;
   }) => Promise<{ error: Error | null }>;
   signOut: () => Promise<{ error: Error | null }>;
   getUser: () => User | null;
@@ -102,16 +103,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     username?: string;
     full_name?: string;
     language?: string;
+    referred_by?: string | null;
   }) => {
     try {
       // Determine the correct site URL for redirects
-      // This will use the actual URL in production and development
       const siteUrl = typeof window !== 'undefined' 
         ? window.location.origin 
         : process.env.NEXT_PUBLIC_SITE_URL || 'https://betonit-sepia.vercel.app';
       
       // First, just sign up the user with Supabase Auth
-      // We'll create the profile in the users table via the auth callback
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -121,6 +121,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             username: userData?.username,
             full_name: userData?.full_name,
             language: userData?.language || 'en',
+            referred_by: userData?.referred_by || null,
           }
         },
       });
@@ -134,7 +135,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         track(ANALYTICS_EVENTS.SIGN_UP, { 
           email, 
           username: userData?.username,
-          language: userData?.language 
+          language: userData?.language,
+          referred_by: userData?.referred_by
         });
       }
       

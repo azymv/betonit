@@ -4,12 +4,14 @@ import { createServerActionClient } from '@supabase/auth-helpers-nextjs';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { Database } from '@/lib/types/supabase';
+import { processReferralReward } from './referral-actions';
 
 export async function createUserProfile(userId: string, userData: {
   email: string;
   username?: string;
   full_name?: string;
   language?: string;
+  referred_by?: string | null;
 }) {
   console.log("Starting createUserProfile for user:", userId);
   
@@ -65,6 +67,7 @@ export async function createUserProfile(userId: string, userData: {
         full_name: userData.full_name,
         language: userData.language || 'en',
         referral_code: referralCode,
+        referred_by: userData.referred_by,
       });
     
     if (profileError) {
@@ -86,6 +89,16 @@ export async function createUserProfile(userId: string, userData: {
     if (balanceError) {
       console.error('Error creating initial balance:', balanceError);
       return { error: balanceError };
+    }
+    
+    // If user was referred, process the referral reward
+    if (userData.referred_by) {
+      try {
+        await processReferralReward(userData.referred_by, userId);
+      } catch (error) {
+        console.error('Error processing referral reward:', error);
+        // Don't return error here, as the user profile was created successfully
+      }
     }
     
     console.log("User setup completed successfully");

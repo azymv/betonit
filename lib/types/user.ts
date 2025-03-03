@@ -29,11 +29,14 @@ export interface UserSettingsFormData {
 }
 
 // Type for authentication forms
+
+// Обновим интерфейс AuthFormData, если необходимо
 export interface AuthFormData {
   email: string;
   password: string;
-  username?: string;
-  full_name?: string;
-  language?: string;
-  termsAccepted?: boolean;
+  username: string;
+  full_name: string;
+  language: string;
+  termsAccepted: boolean;
+  // Не нужно добавлять referred_by здесь, так как это внутреннее значение
 }

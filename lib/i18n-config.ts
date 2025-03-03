@@ -57,6 +57,7 @@ export function getTranslation(locale: string, key: string): string {
 // Auth success
 'auth.success.title': 'Account Verified!',
 'auth.success.description': 'Your email has been successfully verified. You can now sign in to your account.',
+'auth.signup.referralApplied': 'Referral bonus will be applied after registration!',
 
       // Home page
       'home.title': 'Predict. Win. Earn.',
@@ -241,7 +242,8 @@ export function getTranslation(locale: string, key: string): string {
       // Auth success
       'auth.success.title': 'Аккаунт подтвержден!',
       'auth.success.description': 'Ваш email успешно подтвержден. Теперь вы можете войти в свой аккаунт.',
-      
+      'auth.signup.referralApplied': 'Реферальный бонус будет применен после регистрации!',
+
       // Home page
       'home.title': 'Предсказывай. Побеждай. Зарабатывай.',
       'home.subtitle': 'Делай ставки на исходы событий и выигрывай монеты',
