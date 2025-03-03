@@ -49,6 +49,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Устанавливаем таймаут для создания профиля
     const profileTimeout = setTimeout(() => {
       console.log("Profile creation timed out after 10 seconds");
+      // Принудительно завершаем операцию
+      setIsLoading(false);
     }, 10000);
     
     try {
@@ -60,40 +62,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       
-      // Проверяем существование профиля с максимальной надежностью
-      const { data, error } = await supabase
-        .from('users')
-        .select('id')
-        .eq('id', currentUser.id)
-        .single();
+      // Используем серверное действие вместо прямого запроса к базе данных
+      const { createProfileIfNeeded } = await import('@/lib/actions/auth-actions');
       
-      // Если профиль найден, ничего не делаем
-      if (!error && data) {
-        console.log("User profile exists. No action needed.");
-        return;
-      }
+      const result = await createProfileIfNeeded(currentUser.id, {
+        email: currentUser.email || '',
+        username: currentUser.user_metadata?.username,
+        full_name: currentUser.user_metadata?.full_name,
+        language: currentUser.user_metadata?.language || 'en',
+        referred_by: currentUser.user_metadata?.referred_by,
+      });
       
-      // Если профиль не найден (или возникла другая ошибка), создаем профиль
-      // используя серверное действие
-      if (error) {
-        console.log("Error or profile not found, creating profile via server action");
-        
-        // Используем серверное действие из auth-actions
-        const { createProfileIfNeeded } = await import('@/lib/actions/auth-actions');
-        
-        const result = await createProfileIfNeeded(currentUser.id, {
-          email: currentUser.email || '',
-          username: currentUser.user_metadata?.username,
-          full_name: currentUser.user_metadata?.full_name,
-          language: currentUser.user_metadata?.language || 'en',
-          referred_by: currentUser.user_metadata?.referred_by,
-        });
-        
-        if (!result.success) {
-          console.error("Failed to create user profile:", result.error);
-        } else {
-          console.log("User profile created/verified successfully");
-        }
+      if (!result.success) {
+        console.error("Failed to create/verify user profile:", result.error);
+      } else {
+        console.log("User profile verified or created successfully");
       }
     } catch (err) {
       console.error("Error in ensureUserProfile:", err);
@@ -104,89 +87,110 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [supabase]);
 
   useEffect(() => {
-    // Get initial session
+    // Устанавливаем флаг загрузки при инициализации
+    setIsLoading(true);
+    
     const getInitialSession = async () => {
-      setIsLoading(true);
-      
-      // Устанавливаем таймаут для загрузки сессии
-      const sessionTimeout = setTimeout(() => {
-        console.log("Session loading timed out after 5 seconds");
-        setIsLoading(false);
-      }, 5000);
-      
       try {
+        // Устанавливаем таймаут для загрузки сессии
+        const sessionTimeout = setTimeout(() => {
+          console.log("Session loading timed out after 5 seconds");
+          setIsLoading(false);
+        }, 5000);
+        
         const { data: { session: initialSession } } = await supabase.auth.getSession();
+        
         // Очищаем таймаут, так как сессия загружена
         clearTimeout(sessionTimeout);
         
         setSession(initialSession);
-        setUser(initialSession?.user || null);
         
-        if (initialSession?.user) {
-          identify(initialSession.user.id);
+        if (initialSession) {
+          const { data: { user: initialUser } } = await supabase.auth.getUser();
+          setUser(initialUser);
           
-          // Проверяем существование профиля и создаем его при необходимости
-          await ensureUserProfile(initialSession.user);
+          if (initialUser) {
+            // Идентифицируем пользователя в аналитике
+            identify(initialUser.id);
+            
+            // Проверяем и создаем профиль пользователя, если необходимо
+            // Но делаем это асинхронно, чтобы не блокировать загрузку
+            ensureUserProfile(initialUser).catch(err => {
+              console.error("Error ensuring user profile:", err);
+            });
+          }
         }
-      } catch (err) {
-        console.error('Error getting initial session:', err);
+      } catch (error) {
+        console.error("Error getting initial session:", error);
       } finally {
-        // Очищаем таймаут на всякий случай
-        clearTimeout(sessionTimeout);
+        // В любом случае снимаем флаг загрузки
         setIsLoading(false);
       }
     };
     
+    // Получаем начальную сессию
     getInitialSession();
     
-    // Set up auth state change listener
+    // Подписываемся на изменения состояния аутентификации
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, changedSession) => {
+      async (event, currentSession) => {
         console.log("Auth state changed:", event);
-        setSession(changedSession);
-        setUser(changedSession?.user || null);
         
         // Устанавливаем флаг загрузки при изменении состояния аутентификации
-        if (event !== 'INITIAL_SESSION') {
-          setIsLoading(true);
-        }
+        setIsLoading(true);
         
-        // Устанавливаем таймаут для обработки изменения состояния аутентификации
+        // Устанавливаем таймаут для обработки изменения состояния
         const authChangeTimeout = setTimeout(() => {
           console.log("Auth state change processing timed out after 5 seconds");
           setIsLoading(false);
         }, 5000);
         
         try {
-          if (event === 'SIGNED_IN' && changedSession?.user) {
-            identify(changedSession.user.id);
-            track(ANALYTICS_EVENTS.LOGIN, {
-              userId: changedSession.user.id,
-              email: changedSession.user.email,
-            });
-            
-            // Проверяем существование профиля и создаем его при необходимости
-            await ensureUserProfile(changedSession.user);
-          } else if (event === 'SIGNED_OUT') {
-            resetAnalytics();
-            track(ANALYTICS_EVENTS.LOGOUT);
-          }
+          setSession(currentSession);
           
-          router.refresh();
+          if (currentSession) {
+            const { data: { user: currentUser } } = await supabase.auth.getUser();
+            setUser(currentUser);
+            
+            if (currentUser) {
+              // Идентифицируем пользователя в аналитике
+              identify(currentUser.id);
+              
+              // Отслеживаем событие входа
+              if (event === 'SIGNED_IN') {
+                track('user_signed_in');
+              }
+              
+              // Проверяем и создаем профиль пользователя, если необходимо
+              // Но делаем это асинхронно, чтобы не блокировать загрузку
+              ensureUserProfile(currentUser).catch(err => {
+                console.error("Error ensuring user profile:", err);
+              });
+            }
+          } else {
+            setUser(null);
+            resetAnalytics();
+            
+            // Отслеживаем событие выхода
+            if (event === 'SIGNED_OUT') {
+              track('user_signed_out');
+            }
+          }
         } catch (error) {
           console.error("Error processing auth state change:", error);
         } finally {
-          // Очищаем таймаут и сбрасываем флаг загрузки
+          // В любом случае снимаем флаг загрузки и очищаем таймаут
           clearTimeout(authChangeTimeout);
           setIsLoading(false);
         }
       }
     );
-
+    
+    // Отписываемся при размонтировании компонента
     return () => {
       subscription.unsubscribe();
     };
-  }, [supabase, router, identify, track, resetAnalytics, ensureUserProfile]);
+  }, [supabase, router, track, identify, resetAnalytics, ensureUserProfile]);
 
   const signIn = async (email: string, password: string) => {
     try {
