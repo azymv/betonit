@@ -9,7 +9,6 @@ export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   console.log("Auth callback URL:", requestUrl.toString());
   
-  // Check for code in search params or error
   const code = requestUrl.searchParams.get('code');
   const error = requestUrl.searchParams.get('error');
   const errorCode = requestUrl.searchParams.get('error_code');
@@ -21,17 +20,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL(`/${defaultLocale}/auth/error`, requestUrl.origin));
   }
   
-  // Handle auth code exchange
-  if (code) {
-    try {
-      console.log("Processing auth code");
-      const supabase = createRouteHandlerClient({ cookies });
+  try {
+    const supabase = createRouteHandlerClient({ cookies });
+    
+    if (code) {
+      const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
       
-      // Exchange code for session
-      const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-      
-      if (error) {
-        console.error("Error exchanging code for session:", error);
+      if (exchangeError) {
+        console.error("Error exchanging code for session:", exchangeError);
         return NextResponse.redirect(new URL(`/${defaultLocale}/auth/error`, requestUrl.origin));
       }
       
@@ -56,19 +52,16 @@ export async function GET(request: NextRequest) {
         } catch (profileError) {
           console.error("Exception in createUserProfile:", profileError);
         }
-      } else {
-        console.error("No user found after code exchange");
       }
-    } catch (error) {
-      console.error("Exception in auth callback:", error);
-      return NextResponse.redirect(new URL(`/${defaultLocale}/auth/error`, requestUrl.origin));
+      
+      // После успешной обработки кода перенаправляем на страницу успеха
+      return NextResponse.redirect(new URL(`/${defaultLocale}/auth/success`, requestUrl.origin));
     }
-  } else {
-    console.error("No code found in auth callback URL");
+    
+    // Если нет кода, перенаправляем на главную
+    return NextResponse.redirect(new URL(`/${defaultLocale}`, requestUrl.origin));
+  } catch (error) {
+    console.error("Exception in auth callback:", error);
     return NextResponse.redirect(new URL(`/${defaultLocale}/auth/error`, requestUrl.origin));
   }
-
-  // Redirect to success page after verification
-  console.log("Auth callback completed, redirecting to success page");
-  return NextResponse.redirect(new URL(`/${defaultLocale}/auth/success`, requestUrl.origin));
 }
