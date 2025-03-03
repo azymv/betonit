@@ -159,14 +159,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               // Проверяем и создаем профиль при необходимости
               await ensureUserProfile(authUser.user);
             }
+            
+            // Обновляем страницу только при входе
+            router.refresh();
           } else if (event === 'SIGNED_OUT') {
             resetAnalytics();
             track(ANALYTICS_EVENTS.LOGOUT);
+            
+            // Обновляем страницу только при выходе
+            router.refresh();
           }
           
           setSession(changedSession);
           setUser(changedSession?.user || null);
-          router.refresh();
         } catch (error) {
           console.error("Error in auth state change:", error);
         } finally {
@@ -213,6 +218,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     referred_by?: string | null;
   }) => {
     try {
+      setIsLoading(true);
+      
       // Determine the correct site URL for redirects
       const siteUrl = typeof window !== 'undefined' 
         ? window.location.origin 
@@ -245,11 +252,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           language: userData?.language,
           referred_by: userData?.referred_by
         });
+        
+        // Добавляем задержку перед созданием профиля
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Создаем профиль пользователя
+        await ensureUserProfile(data.user);
+        
+        // Если есть реферальный код, обрабатываем его
+        if (userData?.referred_by) {
+          try {
+            // Находим ID реферера по коду
+            const { data: referrerData, error: referrerError } = await supabase
+              .from('users')
+              .select('id')
+              .eq('referral_code', userData.referred_by)
+              .single();
+              
+            if (!referrerError && referrerData?.id) {
+              // Импортируем и вызываем функцию обработки реферальной награды
+              const { processReferralReward } = await import('@/lib/actions/referral-actions');
+              await processReferralReward(referrerData.id, data.user.id);
+            }
+          } catch (refError) {
+            console.error('Error processing referral:', refError);
+          }
+        }
       }
       
       return { error: null };
     } catch (error) {
       return { error: error as Error };
+    } finally {
+      setIsLoading(false);
     }
   };
 
