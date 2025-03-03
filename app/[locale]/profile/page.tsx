@@ -7,34 +7,9 @@ import { useTranslation } from '@/lib/i18n-config';
 import { useAuth } from '@/lib/context/auth-context';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Database } from '@/lib/types/supabase';
-import { Loader2, User, Wallet, ListTodo } from 'lucide-react';
-
-// Определение типа для события объединенного с таблицей events
-interface BetWithEvent {
-  id: string;
-  user_id: string;
-  event_id: string;
-  amount: number;
-  currency: string;
-  prediction: boolean;
-  odds: number;
-  potential_payout: number;
-  platform_fee: number;
-  status: "pending" | "active" | "won" | "lost" | "cancelled";
-  created_at: string;
-  updated_at: string | null;
-  events?: {
-    title: string;
-    status: string;
-    result: boolean | null;
-  };
-}
+import { User } from 'lucide-react';
 
 export default function ProfilePage() {
   const params = useParams();
@@ -44,10 +19,10 @@ export default function ProfilePage() {
   const { user, isLoading: isAuthLoading } = useAuth();
   
   const [balance, setBalance] = useState<number | null>(null);
-  const [userBets, setUserBets] = useState<BetWithEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
+  // Упрощенная версия для отладки
   useEffect(() => {
     const loadProfileData = async () => {
       if (!user) {
@@ -55,12 +30,31 @@ export default function ProfilePage() {
         return;
       }
       
+      console.log("Loading profile for user:", user.id);
+      
       setIsLoading(true);
       try {
         const supabase = createClientComponentClient<Database>();
         
-        // Упрощенная загрузка баланса и ставок
-        // Не пытаемся создать профиль здесь, это уже должно быть сделано в auth-context
+        // Проверяем существование профиля
+        const { data: profileData, error: profileError } = await supabase
+          .from('users')
+          .select('id')
+          .eq('id', user.id)
+          .single();
+          
+        if (profileError) {
+          console.error("Error loading profile:", profileError);
+          if (profileError.code === 'PGRST116') {
+            setError("Profile not found. Please try signing in again.");
+          } else {
+            setError(profileError.message);
+          }
+          setIsLoading(false);
+          return;
+        }
+        
+        console.log("Profile exists:", profileData);
         
         // Получаем баланс пользователя
         const { data: balanceData, error: balanceError } = await supabase
@@ -71,30 +65,13 @@ export default function ProfilePage() {
           .single();
           
         if (balanceError && balanceError.code !== 'PGRST116') {
-          console.error('Error loading balance:', balanceError);
-        } else {
-          setBalance(balanceData?.amount || 0);
+          console.error("Error loading balance:", balanceError);
+          throw balanceError;
         }
         
-        // Получаем ставки пользователя
-        const { data: betsData, error: betsError } = await supabase
-          .from('bets')
-          .select(`
-            *,
-            events:event_id (
-              title,
-              status,
-              result
-            )
-          `)
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false });
-          
-        if (betsError) {
-          console.error('Error loading bets:', betsError);
-        } else {
-          setUserBets(betsData || []);
-        }
+        console.log("Balance data:", balanceData);
+        setBalance(balanceData?.amount || 0);
+        
       } catch (err) {
         console.error('Error loading profile data:', err);
         setError(err instanceof Error ? err.message : 'Ошибка загрузки данных профиля');
@@ -108,50 +85,12 @@ export default function ProfilePage() {
     }
   }, [user, router, localeStr]);
   
-  // Форматируем дату
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString(localeStr === "en" ? "en-US" : "ru-RU", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit"
-    });
-  };
-  
-  // Форматируем число
-  const formatNumber = (num: number) => {
-    return num.toLocaleString(localeStr === 'en' ? 'en-US' : 'ru-RU');
-  };
-  
-  // Получаем статус ставки с правильным форматом
-  const getBetStatusBadge = (bet: BetWithEvent) => {
-    const event = bet.events;
-    
-    if (!event) return null;
-    
-    if (bet.status === 'won') {
-      return <Badge className="bg-green-500">{t('profile.bets.won')}</Badge>;
-    } else if (bet.status === 'lost') {
-      return <Badge variant="destructive">{t('profile.bets.lost')}</Badge>;
-    } else if (event.status === 'resolved') {
-      return <Badge variant="outline">{t('profile.bets.waiting')}</Badge>;
-    } else {
-      return <Badge variant="secondary">{t('profile.bets.active')}</Badge>;
-    }
-  };
-  
   // Отображение загрузки
   if (isLoading || isAuthLoading) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <Skeleton className="h-10 w-48 mb-8" />
-        
-        <div className="grid gap-8">
-          <Skeleton className="h-40 w-full rounded-lg" />
-          <Skeleton className="h-80 w-full rounded-lg" />
-        </div>
+        <h1 className="text-3xl font-bold mb-8">Загрузка профиля...</h1>
+        <Skeleton className="h-40 w-full rounded-lg" />
       </div>
     );
   }
@@ -160,91 +99,32 @@ export default function ProfilePage() {
   if (error) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <Alert variant="destructive" className="mb-6">
-          <AlertDescription>
-            {error}
-          </AlertDescription>
-        </Alert>
-        
-        <Button onClick={() => {
-          setError(null);
-          setIsLoading(true);
-          const loadData = async () => {
-            try {
-              const supabase = createClientComponentClient<Database>();
-              
-              // Получаем баланс пользователя
-              const { data: balanceData, error: balanceError } = await supabase
-                .from('balances')
-                .select('amount')
-                .eq('user_id', user!.id)
-                .eq('currency', 'coins')
-                .single();
-                
-              if (balanceError && balanceError.code !== 'PGRST116') {
-                console.error('Error loading balance:', balanceError);
-              } else {
-                setBalance(balanceData?.amount || 0);
-              }
-              
-              // Получаем ставки пользователя
-              const { data: betsData, error: betsError } = await supabase
-                .from('bets')
-                .select(`
-                  *,
-                  events:event_id (
-                    title,
-                    status,
-                    result
-                  )
-                `)
-                .eq('user_id', user!.id)
-                .order('created_at', { ascending: false });
-                
-              if (betsError) {
-                console.error('Error loading bets:', betsError);
-              } else {
-                setUserBets(betsData || []);
-              }
-            } catch (err) {
-              console.error('Error loading profile data:', err);
-              setError(err instanceof Error ? err.message : 'Ошибка загрузки данных профиля');
-            } finally {
-              setIsLoading(false);
-            }
-          };
-          
-          loadData();
-        }}>
-          {t('common.retry')}
-        </Button>
+        <h1 className="text-3xl font-bold mb-8">Ошибка</h1>
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+          {error}
+        </div>
       </div>
     );
   }
   
-  // Перенаправление при отсутствии пользователя
-  if (!user) {
-    return null;
-  }
-  
-  return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold mb-8">{t('profile.title')}</h1>
-      
-      <div className="grid gap-8">
-        {/* Карточка профиля */}
+  // Отображение профиля, если все данные загружены
+  if (user) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="text-3xl font-bold mb-8">{t('profile.title')}</h1>
+        
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <User className="h-5 w-5" />
-              {t('profile.profileInfo')}
+              {t('profile.personalInfo')}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <p className="text-sm text-muted-foreground">{t('profile.email')}</p>
-                <p className="font-medium">{user?.email}</p>
+                <p className="font-medium">{user.email}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">{t('profile.username')}</p>
@@ -257,85 +137,21 @@ export default function ProfilePage() {
               <div>
                 <p className="text-sm text-muted-foreground">{t('profile.balance')}</p>
                 <p className="font-medium text-xl text-primary">
-                  {formatNumber(balance || 0)} {t('common.coins')}
+                  {balance || 0} {t('common.coins')}
                 </p>
               </div>
             </div>
           </CardContent>
         </Card>
-        
-        {/* Вкладки */}
-        <Tabs defaultValue="bets">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="bets" className="flex items-center gap-2">
-              <ListTodo className="h-4 w-4" />
-              {t('profile.myBets')}
-            </TabsTrigger>
-            <TabsTrigger value="transactions" className="flex items-center gap-2">
-              <Wallet className="h-4 w-4" />
-              {t('profile.transactions')}
-            </TabsTrigger>
-          </TabsList>
-          
-          {/* Вкладка со ставками */}
-          <TabsContent value="bets">
-            <Card>
-              <CardHeader>
-                <CardTitle>{t('profile.betsHistory')}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {userBets.length === 0 ? (
-                  <div className="text-center py-8">
-                    <p className="text-muted-foreground">{t('profile.noBets')}</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {userBets.map((bet) => (
-                      <div key={bet.id} className="border p-4 rounded-lg">
-                        <div className="flex justify-between mb-2">
-                          <div>
-                            <h3 className="font-medium">{bet.events?.title}</h3>
-                            <p className="text-sm text-muted-foreground">
-                              {t('events.yourBet')}: {bet.prediction ? t('common.yes') : t('common.no')}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            {getBetStatusBadge(bet)}
-                            <p className="text-sm text-muted-foreground mt-1">
-                              {formatDate(bet.created_at)}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span>{t('events.amount')}: {formatNumber(bet.amount)} {t('common.coins')}</span>
-                          <span>
-                            {t('events.potentialWinnings')}: {formatNumber(bet.potential_payout)} {t('common.coins')}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          {/* Вкладка с транзакциями */}
-          <TabsContent value="transactions">
-            <Card>
-              <CardHeader>
-                <CardTitle>{t('profile.transactionsHistory')}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
-                  <p className="text-muted-foreground">{t('profile.comingSoon')}</p>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
       </div>
+    );
+  }
+  
+  // Если пользователь не найден и не идет загрузка
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <h1 className="text-3xl font-bold mb-8">Пользователь не авторизован</h1>
+      <p>Пожалуйста, войдите в систему, чтобы просмотреть свой профиль.</p>
     </div>
   );
 }
