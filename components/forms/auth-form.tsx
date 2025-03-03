@@ -44,14 +44,15 @@ export function AuthForm({ type, redirectPath = '/' }: AuthFormProps) {
   const locale = params.locale as string;
   const { t } = useTranslation(locale);
   
-  // Получаем и обрабатываем реферальный код из URL
+  // Получаем реферальный код из URL и сохраняем его
   useEffect(() => {
     const referralCode = searchParams.get('ref');
-    
-    const fetchReferrer = async () => {
-      if (referralCode && type === 'signup') {
+    if (referralCode && type === 'signup') {
+      // Сохраняем код в sessionStorage для использования после подтверждения email
+      sessionStorage.setItem('referralCode', referralCode);
+      
+      const fetchReferrer = async () => {
         try {
-          setIsLoading(true);
           const supabase = createClientComponentClient<Database>();
           const { data, error } = await supabase
             .from('users')
@@ -61,19 +62,16 @@ export function AuthForm({ type, redirectPath = '/' }: AuthFormProps) {
             
           if (!error && data) {
             setReferrerId(data.id);
-            console.log(`Found referrer: ${data.id} for code: ${referralCode}`);
-          } else {
-            console.error('Error or no data when fetching referrer:', error);
+            // Сохраняем ID реферера в sessionStorage
+            sessionStorage.setItem('referrerId', data.id);
           }
         } catch (error) {
-          console.error('Exception when fetching referrer:', error);
-        } finally {
-          setIsLoading(false);
+          console.error('Error fetching referrer:', error);
         }
-      }
-    };
-    
-    fetchReferrer();
+      };
+      
+      fetchReferrer();
+    }
   }, [searchParams, type]);
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -112,6 +110,9 @@ export function AuthForm({ type, redirectPath = '/' }: AuthFormProps) {
           router.push(`/${locale}${redirectPath}`);
         }
       } else {
+        // Получаем сохраненный ID реферера
+        const storedReferrerId = sessionStorage.getItem('referrerId');
+        
         // For signup, if terms are not accepted, show error
         if (!formData.termsAccepted) {
           setError(t('auth.signup.acceptTermsError'));
@@ -126,7 +127,7 @@ export function AuthForm({ type, redirectPath = '/' }: AuthFormProps) {
             username: formData.username,
             full_name: formData.full_name,
             language: formData.language,
-            referred_by: referrerId // Добавляем ID реферера
+            referred_by: storedReferrerId || referrerId // Используем сохраненный или текущий ID
           }
         );
         if (error) {

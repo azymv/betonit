@@ -34,6 +34,29 @@ export async function GET(request: NextRequest) {
       if (data.user) {
         console.log("User authenticated:", data.user.id);
         
+        // Попробуем получить сохраненный referrerId из метаданных или запросить по коду
+        let referredBy = data.user.user_metadata?.referred_by;
+        
+        // Если реферера нет в метаданных, попробуем найти в БД по коду из запроса
+        if (!referredBy) {
+          const referralCode = requestUrl.searchParams.get('ref') || '';
+          if (referralCode) {
+            try {
+              const { data: referrerData } = await supabase
+                .from('users')
+                .select('id')
+                .eq('referral_code', referralCode)
+                .single();
+                
+              if (referrerData) {
+                referredBy = referrerData.id;
+              }
+            } catch (err) {
+              console.error("Error finding referrer by code:", err);
+            }
+          }
+        }
+        
         // Create the user profile
         try {
           const result = await createUserProfile(data.user.id, {
@@ -41,7 +64,7 @@ export async function GET(request: NextRequest) {
             username: data.user.user_metadata?.username,
             full_name: data.user.user_metadata?.full_name,
             language: data.user.user_metadata?.language,
-            referred_by: data.user.user_metadata?.referred_by || null,
+            referred_by: referredBy,
           });
           
           if (result.error) {

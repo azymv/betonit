@@ -17,12 +17,12 @@ export async function POST(request: NextRequest) {
     }
     
     // Используем существующую функцию для создания профиля
-    const result = await createUserProfile(session.user.id, {
-      email: userData.email,
-      username: userData.username,
-      full_name: userData.full_name,
-      language: userData.language,
-      referred_by: userData.referred_by,
+    const result = await createUserProfile(userData.userId || session.user.id, {
+      email: userData.email || session.user.email,
+      username: userData.username || session.user.user_metadata?.username,
+      full_name: userData.fullName || session.user.user_metadata?.full_name,
+      language: userData.language || session.user.user_metadata?.language || 'en',
+      referred_by: userData.referredBy || session.user.user_metadata?.referred_by,
     });
     
     if (result.error) {
@@ -31,6 +31,7 @@ export async function POST(request: NextRequest) {
     
     return NextResponse.json({ success: true });
   } catch (error) {
+    console.error('Error in create-profile API:', error);
     return NextResponse.json({ error: (error as Error).message }, { status: 500 });
   }
 }

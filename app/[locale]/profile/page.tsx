@@ -122,31 +122,57 @@ export default function ProfilePage() {
   
   useEffect(() => {
     const loadProfileData = async () => {
-      if (!user) {
-        router.push(`/${localeStr}/auth/signin?redirectTo=profile`);
+      // Проверяем, есть ли пользователь и не выполняется ли уже загрузка
+      if (!user || isLoading) {
         return;
       }
       
+      // Предотвращаем множественные загрузки
       setIsLoading(true);
+      
       try {
         const supabase = createClientComponentClient<Database>();
         
-        // First check if user profile exists
-        const { error: profileError } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', user.id)
-          .single();
+        // Загружаем все данные параллельно для ускорения
+        const [
+          profileResponse, 
+          balanceResponse, 
+          betsResponse, 
+          referralCodeResponse
+        ] = await Promise.all([
+          // Проверяем существование профиля
+          supabase.from('users').select('*').eq('id', user.id).single(),
           
-        if (profileError && profileError.code === 'PGRST116') {
-          // Profile doesn't exist, create it
+          // Загружаем баланс
+          supabase.from('balances').select('amount').eq('user_id', user.id).eq('currency', 'coins').single(),
+          
+          // Загружаем ставки
+          supabase.from('bets')
+            .select(`*, events:event_id (title, status, result)`)
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false }),
+            
+          // Загружаем реферальный код
+          supabase.from('users').select('referral_code').eq('id', user.id).single()
+        ]);
+        
+        // Проверяем, существует ли профиль
+        if (profileResponse.error && profileResponse.error.code === 'PGRST116') {
+          // Профиль не существует - создаем его через API
+          // Важно: используем fetch вместо перезагрузки страницы
           console.log('User profile not found, creating...');
+          
+          // Сохраняем информацию, что мы уже пытаемся создать профиль,
+          // чтобы избежать множественных запросов
+          sessionStorage.setItem('creatingProfile', 'true');
+          
           const result = await fetch('/api/create-profile', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
+              userId: user.id,
               email: user.email,
               username: user.user_metadata?.username,
               full_name: user.user_metadata?.full_name,
@@ -157,81 +183,70 @@ export default function ProfilePage() {
           if (!result.ok) {
             const errorData = await result.json();
             console.error('Failed to create user profile:', errorData);
-            throw new Error(errorData.error || 'Failed to create user profile');
+            // Не перезагружаем страницу, просто показываем ошибку
+          } else {
+            // Подождем немного и попробуем загрузить данные снова
+            setTimeout(() => {
+              // Но не перезагружаем страницу
+              setIsLoading(false);
+              // Убираем флаг
+              sessionStorage.removeItem('creatingProfile');
+            }, 1000);
           }
-          
-          // Wait a bit to ensure the profile is created
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          // Reload the page to get fresh data
-          window.location.reload();
           return;
-        } else if (profileError) {
-          throw profileError;
         }
         
-        // Загрузка баланса
-        const { data: balanceData, error: balanceError } = await supabase
-          .from('balances')
-          .select('amount')
-          .eq('user_id', user.id)
-          .eq('currency', 'coins')
-          .single();
-          
-        if (balanceError && balanceError.code !== 'PGRST116') {
-          throw balanceError;
+        // Обрабатываем данные, если они получены успешно
+        
+        // Баланс
+        if (!balanceResponse.error || balanceResponse.error.code === 'PGRST116') {
+          setBalance(balanceResponse.data?.amount || 0);
         }
         
-        setBalance(balanceData?.amount || 0);
-        
-        // Загрузка ставок
-        const { data: betsData, error: betsError } = await supabase
-          .from('bets')
-          .select(`
-            *,
-            events:event_id (
-              title,
-              status,
-              result
-            )
-          `)
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false });
-          
-        if (betsError) {
-          throw betsError;
+        // Ставки
+        if (!betsResponse.error) {
+          const bets = betsResponse.data || [];
+          setUserBets(bets);
+          setBetStats(calculateBetStats(bets));
         }
         
-        setUserBets(betsData || []);
-        setBetStats(calculateBetStats(betsData || []));
-        
-        // Загрузка реферального кода
-        const { data: userData, error: userError } = await supabase
-          .from('users')
-          .select('referral_code')
-          .eq('id', user.id)
-          .single();
-          
-        if (userError) {
-          throw userError;
+        // Реферальный код
+        if (!referralCodeResponse.error) {
+          setReferralCode(referralCodeResponse.data?.referral_code || '');
         }
         
-        setReferralCode(userData?.referral_code || '');
-        
-        // Загрузка статистики рефералов
-        const referralStatsResult = await getReferralStats();
-        if (referralStatsResult.success && referralStatsResult.stats) {
-          setReferralStats(referralStatsResult.stats);
+        // Статистика рефералов
+        try {
+          const referralStatsResult = await getReferralStats();
+          if (referralStatsResult.success && referralStatsResult.stats) {
+            setReferralStats(referralStatsResult.stats);
+          }
+        } catch (err) {
+          console.error('Error loading referral stats:', err);
+          // Не блокируем загрузку остальной части страницы
         }
+        
       } catch (error) {
         console.error('Error loading profile data:', error);
       } finally {
+        // Завершаем загрузку
         setIsLoading(false);
       }
     };
     
-    loadProfileData();
-  }, [user, router, localeStr]);
+    // Добавим проверку на множественные вызовы
+    if (user && !sessionStorage.getItem('creatingProfile')) {
+      loadProfileData();
+    } else if (!user) {
+      // Перенаправление на страницу входа
+      router.push(`/${localeStr}/auth/signin?redirectTo=profile`);
+    }
+    
+    // Добавляем очистку и обработку видимости страницы
+    return () => {
+      // Очищаем состояние при размонтировании, если необходимо
+    };
+  }, [user, router, localeStr]); // Убираем зависимости, которые могут вызывать повторные рендеры
   
   // Форматируем дату
   const formatDate = (dateStr: string) => {
