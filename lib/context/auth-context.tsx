@@ -74,32 +74,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!response.ok) {
           const errorData = await response.json();
           console.error("Failed to create profile:", errorData.error);
+          return false;
         } else {
           console.log("User profile created successfully");
+          return true;
         }
       }
+      return true;
     } catch (e) {
       console.error("Error ensuring user profile exists:", e);
+      return false;
     }
   };
 
   useEffect(() => {
     // Get initial session
     const getInitialSession = async () => {
-      setIsLoading(true);
-      
-      const { data: { session: initialSession } } = await supabase.auth.getSession();
-      setSession(initialSession);
-      setUser(initialSession?.user || null);
-      
-      if (initialSession?.user) {
-        identify(initialSession.user.id);
+      try {
+        setIsLoading(true);
         
-        // Проверяем и создаем профиль при необходимости
-        await ensureUserProfile(initialSession.user);
+        const { data: { session: initialSession } } = await supabase.auth.getSession();
+        
+        if (initialSession?.user) {
+          identify(initialSession.user.id);
+          
+          // Проверяем и создаем профиль при необходимости
+          await ensureUserProfile(initialSession.user);
+        }
+        
+        setSession(initialSession);
+        setUser(initialSession?.user || null);
+      } catch (error) {
+        console.error("Error in getInitialSession:", error);
+      } finally {
+        setIsLoading(false);
       }
-      
-      setIsLoading(false);
     };
     
     getInitialSession();
@@ -107,24 +116,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Set up auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, changedSession) => {
-        setSession(changedSession);
-        setUser(changedSession?.user || null);
-        
-        if (event === 'SIGNED_IN' && changedSession?.user) {
-          identify(changedSession.user.id);
-          track(ANALYTICS_EVENTS.LOGIN, {
-            userId: changedSession.user.id,
-            email: changedSession.user.email,
-          });
+        try {
+          setIsLoading(true);
           
-          // Проверяем и создаем профиль при необходимости
-          await ensureUserProfile(changedSession.user);
-        } else if (event === 'SIGNED_OUT') {
-          resetAnalytics();
-          track(ANALYTICS_EVENTS.LOGOUT);
+          if (event === 'SIGNED_IN' && changedSession?.user) {
+            identify(changedSession.user.id);
+            track(ANALYTICS_EVENTS.LOGIN, {
+              userId: changedSession.user.id,
+              email: changedSession.user.email,
+            });
+            
+            // Проверяем и создаем профиль при необходимости
+            await ensureUserProfile(changedSession.user);
+          } else if (event === 'SIGNED_OUT') {
+            resetAnalytics();
+            track(ANALYTICS_EVENTS.LOGOUT);
+          }
+          
+          setSession(changedSession);
+          setUser(changedSession?.user || null);
+          router.refresh();
+        } catch (error) {
+          console.error("Error in auth state change:", error);
+        } finally {
+          setIsLoading(false);
         }
-        
-        router.refresh();
       }
     );
 
@@ -135,6 +151,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     try {
+      setIsLoading(true);
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -152,6 +170,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { error: null };
     } catch (error) {
       return { error: error as Error };
+    } finally {
+      setIsLoading(false);
     }
   };
 
