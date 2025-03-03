@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,6 +20,7 @@ export function Header({ locale }: { locale: string }) {
   const { t } = useTranslation(locale);
   const { user, isLoading, signOut } = useAuth();
   const pathname = usePathname();
+  const router = useRouter();
 
   const navItems = [
     {
@@ -48,7 +49,11 @@ export function Header({ locale }: { locale: string }) {
 
   // Обработчик выхода
   const handleSignOut = async () => {
-    await signOut();
+    const { error } = await signOut();
+    if (!error) {
+      router.push(`/${locale}`);
+      router.refresh();
+    }
   };
 
   return (
