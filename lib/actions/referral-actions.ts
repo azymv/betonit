@@ -52,11 +52,24 @@ export async function generateReferralCode() {
 
 // Обработка реферальной награды
 export async function processReferralReward(referrerId: string, newUserId: string) {
-  const supabase = createServerActionClient<Database>({ cookies });
   console.log(`Processing referral reward: referrer=${referrerId}, newUser=${newUserId}`);
   
-  // Начинаем транзакцию для обработки реферальной награды
+  const supabase = createServerActionClient<Database>({ cookies });
+  
   try {
+    // Проверяем, существует ли уже запись о реферальном вознаграждении
+    const { data: existingReward, error: checkError } = await supabase
+      .from('referral_rewards')
+      .select('id')
+      .eq('referrer_id', referrerId)
+      .eq('referred_id', newUserId)
+      .single();
+    
+    if (!checkError && existingReward) {
+      console.log('Referral reward already processed, skipping');
+      return { success: true };
+    }
+    
     // 1. Создаем запись в таблице referral_rewards
     const { error: rewardError } = await supabase
       .from('referral_rewards')

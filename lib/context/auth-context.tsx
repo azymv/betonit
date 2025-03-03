@@ -42,6 +42,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   
   const supabase = createClientComponentClient<Database>();
 
+  // Добавьте новую функцию для проверки и создания профиля
+  const ensureUserProfile = async (user: User) => {
+    try {
+      // Проверяем, существует ли профиль
+      const { error } = await supabase
+        .from('users')
+        .select('id')
+        .eq('id', user.id)
+        .single();
+        
+      if (error && error.code === 'PGRST116') {
+        console.log('User profile does not exist, creating one...');
+        
+        // Профиль не существует, создаем его через API
+        const response = await fetch('/api/create-profile', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userId: user.id,
+            email: user.email,
+            username: user.user_metadata?.username,
+            fullName: user.user_metadata?.full_name,
+            language: user.user_metadata?.language,
+            referredBy: user.user_metadata?.referred_by,
+          }),
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error("Failed to create profile:", errorData.error);
+        } else {
+          console.log("User profile created successfully");
+        }
+      }
+    } catch (e) {
+      console.error("Error ensuring user profile exists:", e);
+    }
+  };
+
   useEffect(() => {
     // Get initial session
     const getInitialSession = async () => {
@@ -53,6 +94,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (initialSession?.user) {
         identify(initialSession.user.id);
+        
+        // Проверяем и создаем профиль при необходимости
+        await ensureUserProfile(initialSession.user);
       }
       
       setIsLoading(false);
@@ -72,6 +116,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             userId: changedSession.user.id,
             email: changedSession.user.email,
           });
+          
+          // Проверяем и создаем профиль при необходимости
+          await ensureUserProfile(changedSession.user);
         } else if (event === 'SIGNED_OUT') {
           resetAnalytics();
           track(ANALYTICS_EVENTS.LOGOUT);
@@ -88,12 +135,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
       
-      return { error };
+      if (error) {
+        return { error };
+      }
+      
+      // Проверяем и создаем профиль при входе
+      if (data.user) {
+        await ensureUserProfile(data.user);
+      }
+      
+      return { error: null };
     } catch (error) {
       return { error: error as Error };
     }
