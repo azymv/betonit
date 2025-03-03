@@ -49,10 +49,17 @@ export function Header({ locale }: { locale: string }) {
 
   // Обработчик выхода
   const handleSignOut = async () => {
-    const { error } = await signOut();
-    if (!error) {
+    try {
+      const { error } = await signOut();
+      if (error) {
+        console.error("Error signing out:", error);
+        return;
+      }
+      
+      // Перенаправление после успешного выхода
       router.push(`/${locale}`);
-      router.refresh();
+    } catch (e) {
+      console.error("Exception during sign out:", e);
     }
   };
 

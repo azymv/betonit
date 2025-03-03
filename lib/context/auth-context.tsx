@@ -148,9 +148,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
+      // Использование бразуерного клиента Supabase
+      const { error } = await supabase.auth.signOut({
+        scope: 'local' // Явно указываем локальный выход вместо глобального
+      });
+      
+      if (error) {
+        console.error("Sign out error:", error);
+      }
+      
       return { error };
     } catch (error) {
+      console.error("Exception during sign out:", error);
       return { error: error as Error };
     }
   };
