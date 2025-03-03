@@ -45,6 +45,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Добавьте новую функцию для проверки и создания профиля
   const ensureUserProfile = async (user: User) => {
     try {
+      console.log('Ensuring user profile exists for:', user.id);
+      
+      // Проверяем, что пользователь действительно существует в auth.users
+      const { data: authUser, error: authError } = await supabase.auth.getUser();
+      
+      if (authError || !authUser?.user) {
+        console.error("User not found in auth.users:", authError);
+        return false;
+      }
+      
       // Проверяем, существует ли профиль
       const { error } = await supabase
         .from('users')
@@ -54,6 +64,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
       if (error && error.code === 'PGRST116') {
         console.log('User profile does not exist, creating one...');
+        
+        // Добавляем задержку перед созданием профиля
+        await new Promise(resolve => setTimeout(resolve, 1000));
         
         // Профиль не существует, создаем его через API
         const response = await fetch('/api/create-profile', {
@@ -80,6 +93,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return true;
         }
       }
+      
+      console.log('User profile already exists');
       return true;
     } catch (e) {
       console.error("Error ensuring user profile exists:", e);
@@ -119,6 +134,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
           setIsLoading(true);
           
+          console.log('Auth state changed:', event, changedSession?.user?.id);
+          
           if (event === 'SIGNED_IN' && changedSession?.user) {
             identify(changedSession.user.id);
             track(ANALYTICS_EVENTS.LOGIN, {
@@ -126,8 +143,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               email: changedSession.user.email,
             });
             
-            // Проверяем и создаем профиль при необходимости
-            await ensureUserProfile(changedSession.user);
+            // Добавляем задержку перед созданием профиля
+            // чтобы дать Supabase время на завершение процесса подтверждения email
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Сначала проверяем, что пользователь действительно существует в auth.users
+            const { data: authUser, error: authError } = await supabase.auth.getUser();
+            
+            if (authError) {
+              console.error("Error getting auth user:", authError);
+              return;
+            }
+            
+            if (authUser?.user) {
+              // Проверяем и создаем профиль при необходимости
+              await ensureUserProfile(authUser.user);
+            }
           } else if (event === 'SIGNED_OUT') {
             resetAnalytics();
             track(ANALYTICS_EVENTS.LOGOUT);
