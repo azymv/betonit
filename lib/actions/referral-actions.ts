@@ -23,6 +23,7 @@ export async function generateReferralCode() {
     .single();
     
   if (userError) {
+    console.error('Error getting user data for referral code:', userError);
     return { success: false, message: userError.message };
   }
   
@@ -44,6 +45,7 @@ export async function generateReferralCode() {
     .eq('id', session.user.id);
     
   if (updateError) {
+    console.error('Error saving referral code:', updateError);
     return { success: false, message: updateError.message };
   }
   
@@ -99,6 +101,7 @@ export async function processReferralReward(referrerId: string, newUserId: strin
       throw referrerBalanceError;
     }
     
+    // Если баланс не существует, создаем его
     const referrerAmount = (referrerBalance?.amount || 0) + 100;
     
     const { error: updateReferrerError } = await supabase
@@ -145,45 +148,56 @@ export async function processReferralReward(referrerId: string, newUserId: strin
     }
     
     // 4. Создаем транзакции для обоих пользователей
-    // Для реферера
-    const { error: referrerTxError } = await supabase
-      .from('transactions')
-      .insert({
-        user_id: referrerId,
-        amount: 100,
-        currency: 'coins',
-        type: 'referral_reward',
-        status: 'completed',
-        metadata: { referred_user_id: newUserId }
-      });
-      
-    if (referrerTxError) {
-      console.error("Error creating referrer transaction:", referrerTxError);
-      throw referrerTxError;
+    try {
+      // Для реферера
+      const { error: referrerTxError } = await supabase
+        .from('transactions')
+        .insert({
+          user_id: referrerId,
+          amount: 100,
+          currency: 'coins',
+          type: 'referral_reward',
+          status: 'completed',
+          metadata: { referred_user_id: newUserId }
+        });
+        
+      if (referrerTxError) {
+        console.error("Error creating referrer transaction:", referrerTxError);
+        // Продолжаем выполнение, так как балансы уже обновлены
+      }
+    } catch (error) {
+      console.error("Exception creating referrer transaction:", error);
+      // Не прерываем выполнение, так как основная часть операции завершена
     }
     
-    // Для нового пользователя
-    const { error: newUserTxError } = await supabase
-      .from('transactions')
-      .insert({
-        user_id: newUserId,
-        amount: 50,
-        currency: 'coins',
-        type: 'referral_reward',
-        status: 'completed',
-        metadata: { referrer_id: referrerId }
-      });
-      
-    if (newUserTxError) {
-      console.error("Error creating new user transaction:", newUserTxError);
-      throw newUserTxError;
+    try {
+      // Для нового пользователя
+      const { error: newUserTxError } = await supabase
+        .from('transactions')
+        .insert({
+          user_id: newUserId,
+          amount: 50,
+          currency: 'coins',
+          type: 'referral_reward',
+          status: 'completed',
+          metadata: { referrer_id: referrerId }
+        });
+        
+      if (newUserTxError) {
+        console.error("Error creating new user transaction:", newUserTxError);
+        // Продолжаем выполнение, так как балансы уже обновлены
+      }
+    } catch (error) {
+      console.error("Exception creating new user transaction:", error);
+      // Не прерываем выполнение, так как основная часть операции завершена
     }
     
     console.log("Successfully processed referral reward");
     return { success: true };
   } catch (error) {
     console.error("Error in processReferralReward:", error);
-    throw error;
+    // Возвращаем информацию об ошибке, но не прерываем всю операцию
+    return { success: false, error: (error as Error).message };
   }
 }
 
@@ -191,41 +205,55 @@ export async function processReferralReward(referrerId: string, newUserId: strin
 export async function getReferralStats() {
   const supabase = createServerActionClient<Database>({ cookies });
   
-  // Получаем текущего пользователя
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) {
-    return { success: false, message: 'User not authenticated' };
-  }
-  
-  // Получаем количество успешных рефералов
-  const { count, error: countError } = await supabase
-    .from('referral_rewards')
-    .select('*', { count: 'exact', head: true })
-    .eq('referrer_id', session.user.id)
-    .eq('status', 'completed');
-    
-  if (countError) {
-    return { success: false, message: countError.message };
-  }
-  
-  // Получаем сумму заработанных монет
-  const { data: rewardsData, error: rewardsError } = await supabase
-    .from('referral_rewards')
-    .select('referrer_amount')
-    .eq('referrer_id', session.user.id)
-    .eq('status', 'completed');
-    
-  if (rewardsError) {
-    return { success: false, message: rewardsError.message };
-  }
-  
-  const totalEarned = rewardsData.reduce((sum, item) => sum + (item.referrer_amount || 0), 0);
-  
-  return { 
-    success: true, 
-    stats: {
-      totalReferrals: count || 0,
-      totalEarned
+  try {
+    // Получаем текущего пользователя
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      return { success: false, message: 'User not authenticated' };
     }
-  };
+    
+    // Получаем количество успешных рефералов
+    const { count, error: countError } = await supabase
+      .from('referral_rewards')
+      .select('*', { count: 'exact', head: true })
+      .eq('referrer_id', session.user.id)
+      .eq('status', 'completed');
+      
+    if (countError) {
+      console.error("Error getting referral count:", countError);
+      return { success: false, message: countError.message };
+    }
+    
+    // Получаем сумму заработанных монет
+    const { data: rewardsData, error: rewardsError } = await supabase
+      .from('referral_rewards')
+      .select('referrer_amount')
+      .eq('referrer_id', session.user.id)
+      .eq('status', 'completed');
+      
+    if (rewardsError) {
+      console.error("Error getting referral rewards data:", rewardsError);
+      return { success: false, message: rewardsError.message };
+    }
+    
+    const totalEarned = rewardsData.reduce((sum, item) => sum + (item.referrer_amount || 0), 0);
+    
+    return { 
+      success: true, 
+      stats: {
+        totalReferrals: count || 0,
+        totalEarned
+      }
+    };
+  } catch (error) {
+    console.error("Exception in getReferralStats:", error);
+    return { 
+      success: false, 
+      message: (error as Error).message,
+      stats: {
+        totalReferrals: 0,
+        totalEarned: 0
+      }
+    };
+  }
 }

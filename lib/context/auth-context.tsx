@@ -42,97 +42,69 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   
   const supabase = createClientComponentClient<Database>();
 
-  // Добавьте новую функцию для проверки и создания профиля
-  const ensureUserProfile = async (user: User) => {
+  // Проверяем существование профиля пользователя
+  const ensureUserProfile = async (currentUser: User) => {
+    if (!currentUser) return;
+    
     try {
-      console.log('Ensuring user profile exists for:', user.id);
-      
-      // Проверяем, что пользователь действительно существует в auth.users
-      const { data: authUser, error: authError } = await supabase.auth.getUser();
-      
-      if (authError || !authUser?.user) {
-        console.error("User not found in auth.users:", authError);
-        return false;
-      }
-      
-      // Проверяем, существует ли профиль
       const { error } = await supabase
         .from('users')
         .select('id')
-        .eq('id', user.id)
+        .eq('id', currentUser.id)
         .single();
         
+      // Если профиль не найден, создаем его
       if (error && error.code === 'PGRST116') {
-        console.log('User profile does not exist, creating one...');
+        console.log('Profile not found in auth context, creating...');
         
-        // Добавляем задержку перед созданием профиля
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Профиль не существует, создаем его через API
-        const response = await fetch('/api/create-profile', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            userId: user.id,
-            email: user.email,
-            username: user.user_metadata?.username,
-            fullName: user.user_metadata?.full_name,
-            language: user.user_metadata?.language,
-            referredBy: user.user_metadata?.referred_by,
-          }),
-        });
-        
-        if (!response.ok) {
-          const errorData = await response.json();
-          console.error("Failed to create profile:", errorData.error);
-          return false;
-        } else {
-          console.log("User profile created successfully");
-          return true;
+        try {
+          const response = await fetch('/api/create-profile', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              userId: currentUser.id,
+              email: currentUser.email,
+              username: currentUser.user_metadata?.username,
+              fullName: currentUser.user_metadata?.full_name,
+              language: currentUser.user_metadata?.language,
+              referredBy: currentUser.user_metadata?.referred_by,
+            }),
+          });
+          
+          if (!response.ok) {
+            const errorData = await response.json();
+            console.error('Error creating user profile from auth context:', errorData);
+          } else {
+            console.log('Successfully created user profile from auth context');
+          }
+        } catch (err) {
+          console.error('Exception creating profile from auth context:', err);
         }
       }
-      
-      console.log('User profile already exists');
-      return true;
-    } catch (e) {
-      console.error("Error ensuring user profile exists:", e);
-      return false;
+    } catch (err) {
+      console.error('Error checking user profile:', err);
     }
   };
 
   useEffect(() => {
     // Get initial session
     const getInitialSession = async () => {
-      try {
-        setIsLoading(true);
+      setIsLoading(true);
+      
+      const { data: { session: initialSession } } = await supabase.auth.getSession();
+      setSession(initialSession);
+      setUser(initialSession?.user || null);
+      
+      if (initialSession?.user) {
+        identify(initialSession.user.id);
         
-        const { data: { session: initialSession }, error: sessionError } = await supabase.auth.getSession();
-        
-        if (sessionError) {
-          console.error("Error getting initial session:", sessionError);
-          // При ошибке сессии очищаем состояние
-          setSession(null);
-          setUser(null);
-          return;
-        }
-        
-        if (initialSession?.user) {
-          identify(initialSession.user.id);
-          await ensureUserProfile(initialSession.user);
-        }
-        
-        setSession(initialSession);
-        setUser(initialSession?.user || null);
-      } catch (error) {
-        console.error("Error in getInitialSession:", error);
-        // При ошибке очищаем состояние
-        setSession(null);
-        setUser(null);
-      } finally {
-        setIsLoading(false);
+        // Проверяем и создаем профиль при необходимости
+        await ensureUserProfile(initialSession.user);
       }
+      
+      setIsLoading(false);
     };
     
     getInitialSession();
@@ -140,68 +112,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Set up auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, changedSession) => {
-        console.log('Auth state changed:', event, changedSession?.user?.id);
+        setSession(changedSession);
+        setUser(changedSession?.user || null);
         
-        try {
-          switch (event) {
-            case 'SIGNED_IN':
-              if (changedSession?.user) {
-                setIsLoading(true);
-                
-                // Проверяем, действительно ли это новый вход, а не восстановление сессии
-                const { data: { session: currentSession } } = await supabase.auth.getSession();
-                const isNewSignIn = !currentSession || currentSession.access_token !== changedSession.access_token;
-                
-                setSession(changedSession);
-                setUser(changedSession.user);
-                
-                identify(changedSession.user.id);
-                
-                if (isNewSignIn) {
-                  track(ANALYTICS_EVENTS.LOGIN, {
-                    userId: changedSession.user.id,
-                    email: changedSession.user.email,
-                  });
-                  
-                  await ensureUserProfile(changedSession.user);
-                  router.refresh();
-                }
-              }
-              break;
-              
-            case 'SIGNED_OUT':
-              setSession(null);
-              setUser(null);
-              resetAnalytics();
-              track(ANALYTICS_EVENTS.LOGOUT);
-              router.refresh();
-              break;
-              
-            case 'TOKEN_REFRESHED':
-              // При обновлении токена просто обновляем сессию без перезагрузки
-              setSession(changedSession);
-              setUser(changedSession?.user || null);
-              break;
-              
-            case 'USER_UPDATED':
-              // При обновлении пользователя обновляем данные без перезагрузки
-              setSession(changedSession);
-              setUser(changedSession?.user || null);
-              break;
-              
-            default:
-              // Для остальных событий просто обновляем состояние без refresh
-              if (changedSession) {
-                setSession(changedSession);
-                setUser(changedSession.user);
-              }
-              break;
-          }
-        } catch (error) {
-          console.error("Error in auth state change:", error);
-        } finally {
-          setIsLoading(false);
+        if (event === 'SIGNED_IN' && changedSession?.user) {
+          identify(changedSession.user.id);
+          track(ANALYTICS_EVENTS.LOGIN, {
+            userId: changedSession.user.id,
+            email: changedSession.user.email,
+          });
+          
+          // Проверяем и создаем профиль при входе
+          await ensureUserProfile(changedSession.user);
+        } else if (event === 'SIGNED_OUT') {
+          resetAnalytics();
+          track(ANALYTICS_EVENTS.LOGOUT);
         }
+        
+        router.refresh();
       }
     );
 
