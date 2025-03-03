@@ -108,12 +108,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         setIsLoading(true);
         
-        const { data: { session: initialSession } } = await supabase.auth.getSession();
+        const { data: { session: initialSession }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.error("Error getting initial session:", sessionError);
+          // При ошибке сессии очищаем состояние
+          setSession(null);
+          setUser(null);
+          return;
+        }
         
         if (initialSession?.user) {
           identify(initialSession.user.id);
-          
-          // Проверяем и создаем профиль при необходимости
           await ensureUserProfile(initialSession.user);
         }
         
@@ -121,6 +127,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(initialSession?.user || null);
       } catch (error) {
         console.error("Error in getInitialSession:", error);
+        // При ошибке очищаем состояние
+        setSession(null);
+        setUser(null);
       } finally {
         setIsLoading(false);
       }
@@ -131,47 +140,63 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Set up auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, changedSession) => {
+        console.log('Auth state changed:', event, changedSession?.user?.id);
+        
         try {
-          setIsLoading(true);
-          
-          console.log('Auth state changed:', event, changedSession?.user?.id);
-          
-          if (event === 'SIGNED_IN' && changedSession?.user) {
-            identify(changedSession.user.id);
-            track(ANALYTICS_EVENTS.LOGIN, {
-              userId: changedSession.user.id,
-              email: changedSession.user.email,
-            });
-            
-            // Добавляем задержку перед созданием профиля
-            // чтобы дать Supabase время на завершение процесса подтверждения email
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            
-            // Сначала проверяем, что пользователь действительно существует в auth.users
-            const { data: authUser, error: authError } = await supabase.auth.getUser();
-            
-            if (authError) {
-              console.error("Error getting auth user:", authError);
-              return;
-            }
-            
-            if (authUser?.user) {
-              // Проверяем и создаем профиль при необходимости
-              await ensureUserProfile(authUser.user);
-            }
-            
-            // Обновляем страницу только при входе
-            router.refresh();
-          } else if (event === 'SIGNED_OUT') {
-            resetAnalytics();
-            track(ANALYTICS_EVENTS.LOGOUT);
-            
-            // Обновляем страницу только при выходе
-            router.refresh();
+          switch (event) {
+            case 'SIGNED_IN':
+              if (changedSession?.user) {
+                setIsLoading(true);
+                
+                // Проверяем, действительно ли это новый вход, а не восстановление сессии
+                const { data: { session: currentSession } } = await supabase.auth.getSession();
+                const isNewSignIn = !currentSession || currentSession.access_token !== changedSession.access_token;
+                
+                setSession(changedSession);
+                setUser(changedSession.user);
+                
+                identify(changedSession.user.id);
+                
+                if (isNewSignIn) {
+                  track(ANALYTICS_EVENTS.LOGIN, {
+                    userId: changedSession.user.id,
+                    email: changedSession.user.email,
+                  });
+                  
+                  await ensureUserProfile(changedSession.user);
+                  router.refresh();
+                }
+              }
+              break;
+              
+            case 'SIGNED_OUT':
+              setSession(null);
+              setUser(null);
+              resetAnalytics();
+              track(ANALYTICS_EVENTS.LOGOUT);
+              router.refresh();
+              break;
+              
+            case 'TOKEN_REFRESHED':
+              // При обновлении токена просто обновляем сессию без перезагрузки
+              setSession(changedSession);
+              setUser(changedSession?.user || null);
+              break;
+              
+            case 'USER_UPDATED':
+              // При обновлении пользователя обновляем данные без перезагрузки
+              setSession(changedSession);
+              setUser(changedSession?.user || null);
+              break;
+              
+            default:
+              // Для остальных событий просто обновляем состояние без refresh
+              if (changedSession) {
+                setSession(changedSession);
+                setUser(changedSession.user);
+              }
+              break;
           }
-          
-          setSession(changedSession);
-          setUser(changedSession?.user || null);
         } catch (error) {
           console.error("Error in auth state change:", error);
         } finally {
@@ -195,16 +220,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       
       if (error) {
+        console.error("Sign in error:", error);
         return { error };
       }
       
-      // Проверяем и создаем профиль при входе
-      if (data.user) {
-        await ensureUserProfile(data.user);
+      if (!data.session || !data.user) {
+        console.error("No session or user data after sign in");
+        return { error: new Error('No session data') };
       }
       
       return { error: null };
     } catch (error) {
+      console.error("Exception during sign in:", error);
       return { error: error as Error };
     } finally {
       setIsLoading(false);
