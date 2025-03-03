@@ -55,13 +55,18 @@ export default function ProfilePage() {
   const [isCodeCopied, setIsCodeCopied] = useState(false);
   const [isGeneratingCode, setIsGeneratingCode] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [referralLink, setReferralLink] = useState<string>('');
+  
+  // Обновляем реферальную ссылку при изменении кода
+  useEffect(() => {
+    if (referralCode && typeof window !== 'undefined') {
+      setReferralLink(`${window.location.origin}/${localeStr}/auth/signup?ref=${referralCode}`);
+    }
+  }, [referralCode, localeStr]);
   
   // Функция для копирования реферальной ссылки
   const copyReferralLink = () => {
-    if (!referralCode) return;
-    
-    const baseUrl = window.location.origin;
-    const referralLink = `${baseUrl}/${localeStr}/auth/signup?ref=${referralCode}`;
+    if (!referralLink) return;
     
     navigator.clipboard.writeText(referralLink)
       .then(() => {
@@ -75,14 +80,26 @@ export default function ProfilePage() {
   
   // Функция для генерации реферального кода
   const handleGenerateCode = async () => {
+    if (isGeneratingCode) return;
+    
     setIsGeneratingCode(true);
     try {
       const result = await generateReferralCode();
+      console.log('Generate referral code result:', result);
+      
       if (result.success && result.code) {
         setReferralCode(result.code);
+        // Wait a bit to ensure the code is saved
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Reload the page to get fresh data
+        window.location.reload();
+      } else {
+        console.error('Failed to generate referral code:', result.message);
+        throw new Error(result.message || 'Failed to generate referral code');
       }
     } catch (err) {
       console.error('Failed to generate referral code:', err);
+      // You might want to show an error message to the user here
     } finally {
       setIsGeneratingCode(false);
     }
@@ -113,6 +130,45 @@ export default function ProfilePage() {
       setIsLoading(true);
       try {
         const supabase = createClientComponentClient<Database>();
+        
+        // First check if user profile exists
+        const { error: profileError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+          
+        if (profileError && profileError.code === 'PGRST116') {
+          // Profile doesn't exist, create it
+          console.log('User profile not found, creating...');
+          const result = await fetch('/api/create-profile', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              email: user.email,
+              username: user.user_metadata?.username,
+              full_name: user.user_metadata?.full_name,
+              language: user.user_metadata?.language,
+            }),
+          });
+          
+          if (!result.ok) {
+            const errorData = await result.json();
+            console.error('Failed to create user profile:', errorData);
+            throw new Error(errorData.error || 'Failed to create user profile');
+          }
+          
+          // Wait a bit to ensure the profile is created
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          // Reload the page to get fresh data
+          window.location.reload();
+          return;
+        } else if (profileError) {
+          throw profileError;
+        }
         
         // Загрузка баланса
         const { data: balanceData, error: balanceError } = await supabase
@@ -160,16 +216,15 @@ export default function ProfilePage() {
           throw userError;
         }
         
-        setReferralCode(userData?.referral_code || null);
+        setReferralCode(userData?.referral_code || '');
         
         // Загрузка статистики рефералов
         const referralStatsResult = await getReferralStats();
         if (referralStatsResult.success && referralStatsResult.stats) {
           setReferralStats(referralStatsResult.stats);
         }
-        
-      } catch (err) {
-        console.error('Error loading profile data:', err);
+      } catch (error) {
+        console.error('Error loading profile data:', error);
       } finally {
         setIsLoading(false);
       }
@@ -332,7 +387,7 @@ export default function ProfilePage() {
                       <input
                         type="text"
                         readOnly
-                        value={`${window.location.origin}/${localeStr}/auth/signup?ref=${referralCode}`}
+                        value={referralLink}
                         className="w-full p-2 border rounded-l-md bg-muted"
                       />
                       <Button 

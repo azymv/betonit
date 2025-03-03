@@ -17,12 +17,12 @@ export async function POST(request: NextRequest) {
     }
     
     // Используем существующую функцию для создания профиля
-    const result = await createUserProfile(userData.userId, {
+    const result = await createUserProfile(session.user.id, {
       email: userData.email,
       username: userData.username,
-      full_name: userData.fullName,
+      full_name: userData.full_name,
       language: userData.language,
-      referred_by: userData.referredBy,
+      referred_by: userData.referred_by,
     });
     
     if (result.error) {
