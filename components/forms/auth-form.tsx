@@ -11,12 +11,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2 } from 'lucide-react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Database } from '@/lib/types/supabase';
+import { AlertCircle } from 'lucide-react';
 
 interface AuthFormProps {
   type: 'signin' | 'signup';
@@ -36,6 +37,8 @@ export function AuthForm({ type, redirectPath = '/' }: AuthFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [referrerId, setReferrerId] = useState<string | null>(null);
+  const [showResendButton, setShowResendButton] = useState(false);
+  const [resendingEmail, setResendingEmail] = useState(false);
   const supabase = createClientComponentClient<Database>({
     options: {
       global: {
@@ -106,19 +109,28 @@ export function AuthForm({ type, redirectPath = '/' }: AuthFormProps) {
   
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setIsLoading(true);
     setError(null);
-    
+    setIsLoading(true);
+    setShowResendButton(false);
+
     try {
       if (type === 'signin') {
         const { error } = await signIn(formData.email, formData.password);
         if (error) {
-          setError(error.message);
+          // Проверяем тип ошибки
+          if (error.message.includes('Email not confirmed')) {
+            setError('Email not confirmed. Please check your inbox and confirm your email address.');
+            
+            // Добавляем кнопку для повторной отправки письма
+            setShowResendButton(true);
+          } else {
+            setError(error.message);
+          }
         } else {
           // Redirect to the specified path or home page
           router.push(`/${locale}${redirectPath}`);
         }
-      } else {
+      } else if (type === 'signup') {
         // Получаем сохраненный ID реферера
         const storedReferrerId = sessionStorage.getItem('referrerId');
         
@@ -145,9 +157,9 @@ export function AuthForm({ type, redirectPath = '/' }: AuthFormProps) {
           setIsSuccess(true);
         }
       }
-    } catch (e) {
-      const err = e as Error;
-      setError(err.message);
+    } catch (err) {
+      console.error('Authentication error:', err);
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
     } finally {
       setIsLoading(false);
     }
@@ -176,8 +188,39 @@ export function AuthForm({ type, redirectPath = '/' }: AuthFormProps) {
         
         {error && (
           <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Error</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
+        )}
+        
+        {showResendButton && (
+          <Button 
+            variant="outline" 
+            className="w-full mt-2 mb-4"
+            onClick={async () => {
+              try {
+                setResendingEmail(true);
+                const { error } = await supabase.auth.resend({
+                  type: 'signup',
+                  email: formData.email,
+                });
+                
+                if (error) {
+                  setError(`Failed to resend email: ${error.message}`);
+                } else {
+                  setError('Verification email has been resent. Please check your inbox.');
+                }
+              } catch (e) {
+                setError(`An error occurred: ${e instanceof Error ? e.message : 'Unknown error'}`);
+              } finally {
+                setResendingEmail(false);
+              }
+            }}
+            disabled={resendingEmail}
+          >
+            {resendingEmail ? 'Sending...' : 'Resend verification email'}
+          </Button>
         )}
         
         {isSuccess && type === 'signup' ? (
