@@ -29,7 +29,8 @@ export async function middleware(request: NextRequest) {
   const type = requestUrl.searchParams.get('type');
   
   // Если это запрос на аутентификацию с кодом, перенаправляем на серверный обработчик
-  if (code && (type === 'signup' || type === 'recovery' || pathname.includes('/auth/callback'))) {
+  // Но только если мы еще не находимся на странице /auth/callback
+  if (code && (type === 'signup' || type === 'recovery') && !pathname.includes('/auth/callback')) {
     // Сохраняем все параметры запроса
     const callbackUrl = new URL('/auth/callback', request.url);
     requestUrl.searchParams.forEach((value, key) => {

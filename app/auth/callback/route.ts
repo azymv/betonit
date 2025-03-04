@@ -60,6 +60,8 @@ export async function GET(request: NextRequest) {
     // If successful, create a user profile
     if (data.session && data.user) {
       try {
+        console.log('Creating user profile for:', data.user.id, data.user.email);
+        
         // Generate a unique referral code
         const referralCode = Math.random().toString(36).substring(2, 10).toUpperCase();
         
@@ -78,7 +80,7 @@ export async function GET(request: NextRequest) {
           }, { onConflict: 'id' });
         
         if (userError) {
-          console.error('Error creating user profile:', userError);
+          console.error('Error creating user profile:', userError.message, userError.details, userError.hint);
         } else {
           console.log('User profile created successfully');
           
@@ -105,7 +107,9 @@ export async function GET(request: NextRequest) {
     }
 
     // Redirect to the profile page
-    return NextResponse.redirect(new URL('/en/profile', request.url), {
+    const redirectTo = requestUrl.searchParams.get('redirect_to') || '/en/profile';
+    
+    return NextResponse.redirect(new URL(redirectTo, request.url), {
       status: 303,
       headers
     });

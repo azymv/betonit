@@ -110,12 +110,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         ? window.location.origin 
         : process.env.NEXT_PUBLIC_SITE_URL || 'https://betonit-sepia.vercel.app';
       
+      // Определяем локаль для редиректа
+      const locale = userData?.language || 'en';
+      
       // Используем новый серверный обработчик для аутентификации
       const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: `${siteUrl}/auth/callback`,
+          emailRedirectTo: `${siteUrl}/auth/callback?redirect_to=/${locale}/profile`,
           data: {
             username: userData?.username,
             full_name: userData?.full_name,

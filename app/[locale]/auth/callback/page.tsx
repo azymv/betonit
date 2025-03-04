@@ -16,17 +16,81 @@ export default function AuthCallbackPage() {
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [errorMessage, setErrorMessage] = useState('');
   
+  // Функция для создания профиля пользователя, если он не существует
+  const ensureUserProfile = async (
+    userId: string, 
+    userEmail: string, 
+    userMetadata: {
+      username?: string;
+      full_name?: string;
+      language?: string;
+      referred_by?: string;
+      [key: string]: string | undefined;
+    } | null
+  ) => {
+    const supabase = createClientComponentClient();
+    
+    // Проверяем, существует ли профиль
+    const { data: profile, error: profileError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', userId)
+      .single();
+      
+    if (profileError || !profile) {
+      console.log("Profile not found, creating one...");
+      // Создаем профиль пользователя
+      const referralCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+      
+      const { error: createError } = await supabase
+        .from('users')
+        .upsert({
+          id: userId,
+          email: userEmail || '',
+          username: userMetadata?.username || `user_${userId.substring(0, 8)}`,
+          full_name: userMetadata?.full_name || '',
+          language: userMetadata?.language || locale,
+          referral_code: referralCode,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
+        
+      if (createError) {
+        console.error("Error creating profile:", createError);
+        return false;
+      } else {
+        // Создаем начальный баланс
+        const { error: balanceError } = await supabase
+          .from('balances')
+          .upsert({
+            user_id: userId,
+            amount: 1000,
+            currency: 'coins',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'user_id, currency' });
+          
+        if (balanceError) {
+          console.error("Error creating balance:", balanceError);
+          return false;
+        }
+      }
+    }
+    
+    return true;
+  };
+  
   useEffect(() => {
     const handleCallback = async () => {
       try {
         // Проверяем, есть ли код в URL
         const code = searchParams.get('code');
-        const error = searchParams.get('error');
+        const errorParam = searchParams.get('error');
         
         // Если есть ошибка в параметрах, показываем её
-        if (error) {
+        if (errorParam) {
           setStatus('error');
-          setErrorMessage(decodeURIComponent(error));
+          setErrorMessage(decodeURIComponent(errorParam));
           return;
         }
         
@@ -50,8 +114,37 @@ export default function AuthCallbackPage() {
         
         // Если код есть, значит middleware не перенаправил запрос на серверный обработчик
         // Это может произойти, если пользователь напрямую перешел по ссылке
-        // Перенаправляем на серверный обработчик
-        window.location.href = `/auth/callback?code=${code}&redirect_to=/${locale}/profile`;
+        // Обрабатываем код на клиенте
+        const supabase = createClientComponentClient();
+        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+        
+        if (exchangeError) {
+          console.error("Error exchanging code for session:", exchangeError);
+          setStatus('error');
+          setErrorMessage(exchangeError.message);
+          return;
+        }
+        
+        // Проверяем, создался ли профиль
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          // Убедимся, что профиль пользователя создан
+          const profileCreated = await ensureUserProfile(
+            session.user.id, 
+            session.user.email || '', 
+            session.user.user_metadata
+          );
+          
+          if (profileCreated) {
+            setStatus('success');
+          } else {
+            setStatus('error');
+            setErrorMessage('Не удалось создать профиль пользователя. Пожалуйста, обратитесь в поддержку.');
+          }
+        } else {
+          setStatus('error');
+          setErrorMessage('Не удалось подтвердить email. Попробуйте снова или обратитесь в поддержку.');
+        }
       } catch (err) {
         console.error("Error in callback handling:", err);
         setStatus('error');
