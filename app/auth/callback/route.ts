@@ -6,9 +6,19 @@ import type { NextRequest } from 'next/server';
 import { defaultLocale } from '@/lib/i18n-config';
 import { Database } from '@/lib/types/supabase';
 
+// Определяем разрешенные домены для CORS
+const allowedOrigins = [
+  'https://betonit-sepia.vercel.app',
+  'https://betonit.vercel.app',
+  'http://localhost:3000'
+];
+
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   console.log("Auth callback URL:", requestUrl.toString());
+  
+  // Получаем origin запроса
+  const origin = request.headers.get('origin') || requestUrl.origin;
   
   // Проверяем код или ошибку в параметрах запроса
   const code = requestUrl.searchParams.get('code');
@@ -16,10 +26,21 @@ export async function GET(request: NextRequest) {
   const errorCode = requestUrl.searchParams.get('error_code');
   const errorDesc = requestUrl.searchParams.get('error_description');
   
+  // Создаем базовый ответ с CORS заголовками
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': allowedOrigins.includes(origin) ? origin : allowedOrigins[0],
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Credentials': 'true',
+  };
+  
   // Если есть ошибка, перенаправляем на страницу ошибки
   if (error || errorCode || errorDesc) {
     console.error("Auth callback error:", { error, errorCode, errorDesc });
-    return NextResponse.redirect(new URL(`/${defaultLocale}/auth/error`, requestUrl.origin));
+    const redirectUrl = new URL(`/${defaultLocale}/auth/error`, requestUrl.origin);
+    return NextResponse.redirect(redirectUrl, {
+      headers: corsHeaders
+    });
   }
   
   // Если есть код, обмениваем его на сессию
@@ -34,7 +55,10 @@ export async function GET(request: NextRequest) {
       
       if (error) {
         console.error("Error exchanging code for session:", error);
-        return NextResponse.redirect(new URL(`/${defaultLocale}/auth/error`, requestUrl.origin));
+        const redirectUrl = new URL(`/${defaultLocale}/auth/error`, requestUrl.origin);
+        return NextResponse.redirect(redirectUrl, {
+          headers: corsHeaders
+        });
       }
       
       // Получаем текущую сессию
@@ -42,7 +66,10 @@ export async function GET(request: NextRequest) {
       
       if (!session || !session.user) {
         console.error("No session or user after code exchange");
-        return NextResponse.redirect(new URL(`/${defaultLocale}/auth/error`, requestUrl.origin));
+        const redirectUrl = new URL(`/${defaultLocale}/auth/error`, requestUrl.origin);
+        return NextResponse.redirect(redirectUrl, {
+          headers: corsHeaders
+        });
       }
       
       console.log("Auth callback completed, user authenticated:", session.user.id);
@@ -109,13 +136,41 @@ export async function GET(request: NextRequest) {
       }
       
       // После успешного обмена перенаправляем на страницу профиля
-      return NextResponse.redirect(new URL(`/${defaultLocale}/profile`, requestUrl.origin));
+      // Используем 303 See Other для принудительного GET запроса
+      const redirectUrl = new URL(`/${defaultLocale}/profile`, requestUrl.origin);
+      return NextResponse.redirect(redirectUrl, {
+        status: 303,
+        headers: corsHeaders
+      });
     } catch (error) {
       console.error("Exception in auth callback:", error);
-      return NextResponse.redirect(new URL(`/${defaultLocale}/auth/error`, requestUrl.origin));
+      const redirectUrl = new URL(`/${defaultLocale}/auth/error`, requestUrl.origin);
+      return NextResponse.redirect(redirectUrl, {
+        headers: corsHeaders
+      });
     }
   } else {
     console.error("No code found in auth callback URL");
-    return NextResponse.redirect(new URL(`/${defaultLocale}/auth/error`, requestUrl.origin));
+    const redirectUrl = new URL(`/${defaultLocale}/auth/error`, requestUrl.origin);
+    return NextResponse.redirect(redirectUrl, {
+      headers: corsHeaders
+    });
   }
+}
+
+// Обработчик OPTIONS запросов для CORS preflight
+export async function OPTIONS(request: NextRequest) {
+  const origin = request.headers.get('origin') || '';
+  
+  // Возвращаем ответ с CORS заголовками
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': allowedOrigins.includes(origin) ? origin : allowedOrigins[0],
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Allow-Credentials': 'true',
+      'Access-Control-Max-Age': '86400',
+    },
+  });
 }
