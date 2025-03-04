@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,17 +10,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback} from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useTranslation, locales } from "@/lib/i18n-config";
 import { NavBar } from "@/components/ui/tubelight-navbar";
-import { Home, Trophy, Calendar, LogOut } from "lucide-react";
+import { Home, Trophy, Calendar, LogOut, User } from "lucide-react";
 import { useAuth } from "@/lib/context/auth-context";
 
 export function Header({ locale }: { locale: string }) {
   const { t } = useTranslation(locale);
   const { user, isLoading, signOut } = useAuth();
   const pathname = usePathname();
-  const router = useRouter();
 
   const navItems = [
     {
@@ -49,24 +48,8 @@ export function Header({ locale }: { locale: string }) {
 
   // Обработчик выхода
   const handleSignOut = async () => {
-    try {
-      const { error } = await signOut();
-      if (error) {
-        console.error("Error signing out:", error);
-      }
-      
-      // После выхода обновляем страницу для сброса состояния
-      router.push(`/${locale}`);
-      router.refresh();
-    } catch (e) {
-      console.error("Exception during sign out handling:", e);
-      router.push(`/${locale}`);
-    }
+    await signOut();
   };
-
-  // Упрощенная логика отображения
-  const showAuthButtons = !isLoading && !user;
-  const showUserProfile = !isLoading && user;
 
   return (
     <header className="border-b relative">
@@ -96,18 +79,22 @@ export function Header({ locale }: { locale: string }) {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Индикатор загрузки */}
-          {isLoading && (
+          {isLoading ? (
+            // Показываем заглушку во время загрузки
             <div className="h-9 w-20 bg-slate-200 animate-pulse rounded" />
-          )}
-          
-          {/* Профиль пользователя */}
-          {showUserProfile && (
+          ) : user ? (
+            // Аватар пользователя
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Avatar className="h-8 w-8 cursor-pointer">
+                  <AvatarImage 
+                    src={user.user_metadata?.avatar_url || ""} 
+                    alt={user.user_metadata?.username || "User"} 
+                  />
                   <AvatarFallback>
-                    {user?.email ? user.email[0].toUpperCase() : "U"}
+                    {user.user_metadata?.username 
+                      ? user.user_metadata.username[0].toUpperCase() 
+                      : user.email ? user.email[0].toUpperCase() : "U"}
                   </AvatarFallback>
                 </Avatar>
               </DropdownMenuTrigger>
@@ -118,12 +105,12 @@ export function Header({ locale }: { locale: string }) {
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href={`/${locale}/profile`}>
+                  <Link href={`/${locale}/profile/bets`}>
                     {t("profile.myBets")}
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href={`/${locale}/profile`}>
+                  <Link href={`/${locale}/profile/balance`}>
                     {t("profile.balance")}
                   </Link>
                 </DropdownMenuItem>
@@ -134,10 +121,8 @@ export function Header({ locale }: { locale: string }) {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          )}
-          
-          {/* Кнопки входа/регистрации */}
-          {showAuthButtons && (
+          ) : (
+            // Кнопки входа и регистрации
             <div className="flex space-x-2">
               <Button variant="outline" className="border-primary text-primary hover:bg-primary/10" asChild>
                 <Link href={`/${locale}/auth/signin`}>

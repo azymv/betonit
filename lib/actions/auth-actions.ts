@@ -1,22 +1,23 @@
 'use server';
 
 import { createServerActionClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { Database } from '@/lib/types/supabase';
 
-// Функция для создания профиля пользователя
 export async function createUserProfile(userId: string, userData: {
   email: string;
   username?: string;
   full_name?: string;
   language?: string;
 }) {
-  console.log("Creating user profile for:", userId);
+  console.log("Starting createUserProfile for user:", userId);
   
   try {
+    // First try regular client
     const supabase = createServerActionClient<Database>({ cookies });
     
-    // Проверяем, существует ли уже профиль
+    // Check if user already exists (to avoid duplicate entries)
     const { data: existingUser, error: checkError } = await supabase
       .from('users')
       .select('id')
@@ -25,48 +26,72 @@ export async function createUserProfile(userId: string, userData: {
     
     if (checkError && checkError.code !== 'PGRST116') {
       console.error('Error checking if user exists:', checkError);
-      return { success: false, error: checkError };
     }
     
     if (existingUser) {
       console.log('User profile already exists, skipping creation');
-      return { success: true, existing: true };
+      return { error: null };
     }
     
-    // Создаем новый профиль
-    const { error: userError } = await supabase
+    console.log('User does not exist yet, creating profile');
+    
+    // Use admin client if available, otherwise use regular client
+    let client = supabase;
+    
+    if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.log("Using service role client");
+      try {
+        client = createClient(
+          process.env.SUPABASE_URL,
+          process.env.SUPABASE_SERVICE_ROLE_KEY
+        );
+      } catch (e) {
+        console.error("Error creating service role client:", e);
+      }
+    } else {
+      console.log("Service role key not available, using regular client");
+    }
+    
+    // Generate a referral code
+    const referralCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+    
+    // Create user record in the users table
+    const { error: profileError } = await client
       .from('users')
       .insert({
         id: userId,
         email: userData.email,
-        username: userData.username || `user_${userId.substring(0, 8)}`,
-        full_name: userData.full_name || '',
-        language: userData.language || 'en'
+        username: userData.username,
+        full_name: userData.full_name,
+        language: userData.language || 'en',
+        referral_code: referralCode,
       });
     
-    if (userError) {
-      console.error('Error creating user profile:', userError);
-      return { success: false, error: userError };
+    if (profileError) {
+      console.error('Error creating user profile:', profileError);
+      return { error: profileError };
     }
     
-    // Создаем начальный баланс
-    const { error: balanceError } = await supabase
+    console.log("User profile created, creating initial balance");
+    
+    // Create an initial balance for the user
+    const { error: balanceError } = await client
       .from('balances')
       .insert({
         user_id: userId,
-        amount: 1000,
-        currency: 'coins'
+        amount: 1000, // Initial balance of 1000 coins
+        currency: 'coins',
       });
     
     if (balanceError) {
       console.error('Error creating initial balance:', balanceError);
-      return { success: false, error: balanceError };
+      return { error: balanceError };
     }
     
-    console.log("User profile created successfully");
-    return { success: true };
+    console.log("User setup completed successfully");
+    return { error: null };
   } catch (error) {
     console.error('Exception in createUserProfile:', error);
-    return { success: false, error };
+    return { error: error as Error };
   }
 }
