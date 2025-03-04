@@ -48,15 +48,27 @@ export async function getUserReferralInfo(userId: string): Promise<ReferralInfoR
     }
     
     // Получаем количество активных рефералов (сделавших ставку)
-    const { data: activeReferralsData, error: activeError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('referred_by', userId)
-      .filter('id', 'in', supabase.from('bets').select('user_id').limit(1000));
+    // Сначала получаем всех рефералов
+    const referredUserIds = referralsData?.map(user => user.id) || [];
     
-    if (activeError) {
-      console.error("Error fetching active referrals:", activeError);
-      return { error: activeError };
+    // Если нет рефералов, то и активных рефералов нет
+    let activeReferralsCount = 0;
+    
+    if (referredUserIds.length > 0) {
+      // Затем проверяем, кто из них сделал ставки
+      const { data: betsData, error: betsError } = await supabase
+        .from('bets')
+        .select('user_id')
+        .in('user_id', referredUserIds);
+      
+      if (betsError) {
+        console.error("Error fetching bets for referrals:", betsError);
+        return { error: betsError };
+      }
+      
+      // Получаем уникальные ID пользователей, сделавших ставки
+      const activeUserIds = [...new Set(betsData?.map(bet => bet.user_id))];
+      activeReferralsCount = activeUserIds.length;
     }
     
     // Формируем реферальную ссылку
@@ -67,7 +79,7 @@ export async function getUserReferralInfo(userId: string): Promise<ReferralInfoR
       referralCode: userData.referral_code,
       referralLink,
       totalReferrals: referralsData?.length || 0,
-      activeReferrals: activeReferralsData?.length || 0,
+      activeReferrals: activeReferralsCount,
       error: null
     };
     
