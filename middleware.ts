@@ -23,6 +23,22 @@ export async function middleware(request: NextRequest) {
   // Обновляем сессию, если необходимо
   await supabase.auth.getSession();
   
+  // Проверяем, является ли запрос запросом на аутентификацию с кодом
+  const requestUrl = new URL(request.url);
+  const code = requestUrl.searchParams.get('code');
+  const type = requestUrl.searchParams.get('type');
+  
+  // Если это запрос на аутентификацию с кодом, перенаправляем на серверный обработчик
+  if (code && (type === 'signup' || type === 'recovery' || pathname.includes('/auth/callback'))) {
+    // Сохраняем все параметры запроса
+    const callbackUrl = new URL('/auth/callback', request.url);
+    requestUrl.searchParams.forEach((value, key) => {
+      callbackUrl.searchParams.set(key, value);
+    });
+    
+    return NextResponse.redirect(callbackUrl);
+  }
+  
   // Проверяем, есть ли уже локаль в пути
   const pathnameHasLocale = locales.some(
     locale => pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`

@@ -110,6 +110,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         ? window.location.origin 
         : process.env.NEXT_PUBLIC_SITE_URL || 'https://betonit-sepia.vercel.app';
       
+      // Используем новый серверный обработчик для аутентификации
       const { error } = await supabase.auth.signUp({
         email,
         password,
