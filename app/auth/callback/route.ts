@@ -79,52 +79,67 @@ export async function GET(request: NextRequest) {
         }
       }
       
-      // Создаем профиль пользователя с дополнительной проверкой
+      // Проверка на существующий профиль перед созданием
+      let profileExists = false;
       try {
-        // Сначала проверим, существует ли профиль
-        const { data: existingProfile, error: checkError } = await supabase
+        const { data: existingProfile, error: profileCheckError } = await supabase
           .from('users')
           .select('id')
           .eq('id', data.user.id)
-          .single();
-          
-        if (!checkError && existingProfile) {
+          .maybeSingle();
+        
+        if (!profileCheckError && existingProfile) {
           console.log("User profile already exists, skipping creation");
-        } else {
-          // Создаем профиль с полной обработкой ошибок
-          const result = await createUserProfile(data.user.id, {
-            email: data.user.email as string,
-            username: data.user.user_metadata?.username,
-            full_name: data.user.user_metadata?.full_name,
-            language: data.user.user_metadata?.language || defaultLocale,
-            referred_by: referrerId || data.user.user_metadata?.referred_by,
+          profileExists = true;
+        }
+      } catch (checkError) {
+        console.error("Error checking for existing profile:", checkError);
+      }
+      
+      // Создаем профиль только если он еще не существует
+      if (!profileExists) {
+        try {
+          // Генерируем уникальный реферальный код
+          const referralCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+          
+          // Создаем профиль напрямую через SQL запрос
+          const { error: insertError } = await supabase.rpc('create_user_profile_direct', {
+            p_user_id: data.user.id,
+            p_email: data.user.email,
+            p_username: data.user.user_metadata?.username || `user_${data.user.id.substring(0, 8)}`,
+            p_full_name: data.user.user_metadata?.full_name || '',
+            p_language: data.user.user_metadata?.language || defaultLocale,
+            p_referral_code: referralCode,
+            p_referred_by: referrerId || data.user.user_metadata?.referred_by
           });
           
-          if (!result.success) {
-            console.error("Error creating user profile:", result.error);
-            // Выводим дополнительную информацию для отладки
-            if (result.error && typeof result.error === 'object') {
-              console.error("Error details:", JSON.stringify(result.error));
-            }
-            // Продолжаем выполнение
-          }
-          
-          // Дополнительная проверка создания профиля
-          const { data: checkProfile, error: checkProfileError } = await supabase
-            .from('users')
-            .select('id')
-            .eq('id', data.user.id)
-            .single();
+          if (insertError) {
+            console.error("Error creating user profile via RPC:", insertError);
             
-          if (checkProfileError) {
-            console.error("Failed to verify profile creation:", checkProfileError);
-          } else if (checkProfile) {
-            console.log("Profile creation verified successfully");
+            // Запасной вариант - используем наш модуль создания профиля
+            console.log("Falling back to createUserProfile function");
+            const result = await createUserProfile(data.user.id, {
+              email: data.user.email as string,
+              username: data.user.user_metadata?.username,
+              full_name: data.user.user_metadata?.full_name,
+              language: data.user.user_metadata?.language || defaultLocale,
+              referred_by: referrerId || data.user.user_metadata?.referred_by,
+            });
+            
+            if (!result.success) {
+              console.error("Error creating user profile via fallback:", result.error);
+            }
+          } else {
+            console.log("Profile created successfully via RPC");
           }
+        } catch (profileError) {
+          console.error("Exception during profile creation:", profileError);
         }
-      } catch (profileError) {
-        console.error("Exception during profile creation:", profileError);
       }
+      
+      // Redirect to success page after verification
+      console.log("Auth callback completed, redirecting to success page");
+      return NextResponse.redirect(new URL(`/${defaultLocale}/auth/signin?success=true`, requestUrl.origin));
     } catch (error) {
       console.error("Exception in auth callback:", error);
       return NextResponse.redirect(new URL(`/${defaultLocale}/auth/error`, requestUrl.origin));
@@ -133,8 +148,4 @@ export async function GET(request: NextRequest) {
     console.error("No code found in auth callback URL");
     return NextResponse.redirect(new URL(`/${defaultLocale}/auth/error`, requestUrl.origin));
   }
-
-  // Redirect to success page after verification
-  console.log("Auth callback completed, redirecting to success page");
-  return NextResponse.redirect(new URL(`/${defaultLocale}/auth/success`, requestUrl.origin));
 }
