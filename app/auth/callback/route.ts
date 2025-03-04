@@ -44,6 +44,15 @@ export async function GET(request: NextRequest) {
 
     // Create a Supabase client for the route handler
     const cookieStore = cookies();
+    
+    // Log all cookies to help debug PKCE issues
+    const allCookies = cookieStore.getAll();
+    console.log('All cookies:', allCookies.map(c => c.name));
+    
+    // Check for the code_verifier cookie specifically
+    const codeVerifier = cookieStore.get('code_verifier');
+    console.log('Code verifier cookie exists:', !!codeVerifier);
+    
     const supabase = createRouteHandlerClient({ 
       cookies: () => cookieStore
     });
@@ -64,6 +73,25 @@ export async function GET(request: NextRequest) {
     
     if (error) {
       console.error('Error exchanging code for session:', error);
+      
+      // Check if the error is due to missing code verifier
+      if (error.message.includes('code verifier should be non-empty') || error.message.includes('both auth code')) {
+        console.log('Code verifier missing, redirecting to sign-in with specific error');
+        return NextResponse.redirect(new URL('/en/auth/signin?error=code_verifier_missing&message=' + encodeURIComponent('Ошибка аутентификации: отсутствует код верификации. Пожалуйста, попробуйте войти снова.'), request.url), {
+          status: 303,
+          headers
+        });
+      }
+      
+      // Check if the error is due to an expired token
+      if (error.message.includes('expired') || error.message.includes('invalid') || error.message.includes('access_denied')) {
+        console.log('Token expired or invalid, redirecting to sign-in with specific error');
+        return NextResponse.redirect(new URL('/en/auth/signin?error=expired_link&message=' + encodeURIComponent('Ссылка для подтверждения email устарела или недействительна. Пожалуйста, запросите новую ссылку.'), request.url), {
+          status: 303,
+          headers
+        });
+      }
+      
       return NextResponse.redirect(new URL('/en/auth/signin?error=' + encodeURIComponent(error.message), request.url), {
         status: 303,
         headers

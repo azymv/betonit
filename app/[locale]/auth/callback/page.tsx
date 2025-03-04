@@ -140,6 +140,19 @@ export default function AuthCallbackPage() {
         const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
         console.log('Client side - API key exists:', !!supabaseKey);
         
+        // Проверяем наличие code_verifier в куках
+        const cookies = document.cookie.split(';').map(cookie => cookie.trim());
+        const hasCodeVerifier = cookies.some(cookie => cookie.startsWith('code_verifier='));
+        console.log('Client side - Code verifier exists in cookies:', hasCodeVerifier);
+        
+        // Если code_verifier отсутствует, перенаправляем на страницу входа
+        if (!hasCodeVerifier) {
+          console.log('Code verifier missing, redirecting to sign-in');
+          setStatus('error');
+          setErrorMessage('Ошибка аутентификации: отсутствует код верификации. Пожалуйста, попробуйте войти снова.');
+          return;
+        }
+        
         const supabase = createClientComponentClient({
           options: {
             global: {
@@ -157,6 +170,14 @@ export default function AuthCallbackPage() {
         
         if (exchangeError) {
           console.error("Error exchanging code for session:", exchangeError);
+          
+          // Check if the error is due to missing code verifier
+          if (exchangeError.message.includes('code verifier should be non-empty') || exchangeError.message.includes('both auth code')) {
+            setStatus('error');
+            setErrorMessage('Ошибка аутентификации: отсутствует код верификации. Пожалуйста, попробуйте войти снова.');
+            return;
+          }
+          
           setStatus('error');
           setErrorMessage(exchangeError.message);
           return;

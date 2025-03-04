@@ -31,13 +31,23 @@ export async function middleware(request: NextRequest) {
   // Если это запрос на аутентификацию с кодом, перенаправляем на серверный обработчик
   // Но только если мы еще не находимся на странице /auth/callback
   if (code && (type === 'signup' || type === 'recovery') && !pathname.includes('/auth/callback')) {
+    console.log('Redirecting authentication request to server-side handler');
+    
     // Сохраняем все параметры запроса
     const callbackUrl = new URL('/auth/callback', request.url);
     requestUrl.searchParams.forEach((value, key) => {
       callbackUrl.searchParams.set(key, value);
     });
     
-    return NextResponse.redirect(callbackUrl);
+    // Важно: сохраняем все куки, особенно code_verifier для PKCE
+    const response = NextResponse.redirect(callbackUrl);
+    
+    // Копируем все куки из запроса в ответ
+    request.cookies.getAll().forEach(cookie => {
+      response.cookies.set(cookie.name, cookie.value);
+    });
+    
+    return response;
   }
   
   // Проверяем, есть ли уже локаль в пути
