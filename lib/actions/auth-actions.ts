@@ -19,23 +19,27 @@ export async function createUserProfile(userId: string, userData: {
     // First try regular client
     const supabase = createServerActionClient<Database>({ cookies });
     
-    // Check if user already exists (to avoid duplicate entries)
-    const { data: existingUser, error: checkError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('id', userId)
-      .single();
-    
-    if (checkError && checkError.code !== 'PGRST116') {
-      console.error('Error checking if user exists:', checkError);
+    // Подробная проверка на существование пользователя
+    try {
+      const { data: existingUser, error: checkError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('id', userId)
+        .single();
+      
+      if (checkError) {
+        if (checkError.code !== 'PGRST116') {
+          console.error('Error checking if user exists:', checkError);
+        } else {
+          console.log('User profile does not exist, will create');
+        }
+      } else if (existingUser) {
+        console.log('User profile already exists, skipping creation');
+        return { success: true, existing: true, error: null };
+      }
+    } catch (checkEx) {
+      console.error('Exception during user existence check:', checkEx);
     }
-    
-    if (existingUser) {
-      console.log('User profile already exists, skipping creation');
-      return { success: true, existing: true, error: null };
-    }
-    
-    console.log('User does not exist yet, creating profile');
     
     // Use admin client if available, otherwise use regular client
     let client = supabase;
@@ -52,43 +56,73 @@ export async function createUserProfile(userId: string, userData: {
       }
     } else {
       console.log("Service role key not available, using regular client");
+      
+      // Проверка, что у клиента есть доступ к таблице users
+      try {
+        const { error: accessCheckError } = await supabase
+          .from('users')
+          .select('count(*)')
+          .limit(1);
+          
+        if (accessCheckError) {
+          console.error('Client may not have access to users table:', accessCheckError);
+        } else {
+          console.log('Client has access to users table');
+        }
+      } catch (accessEx) {
+        console.error('Exception during access check:', accessEx);
+      }
     }
     
     // Generate a referral code
     const referralCode = Math.random().toString(36).substring(2, 10).toUpperCase();
     
-    // Create user record in the users table
-    const { error: profileError } = await client
-      .from('users')
-      .insert({
-        id: userId,
-        email: userData.email,
-        username: userData.username,
-        full_name: userData.full_name,
-        language: userData.language || 'en',
-        referral_code: referralCode,
-        referred_by: userData.referred_by,
-      });
-    
-    if (profileError) {
-      console.error('Error creating user profile:', profileError);
-      return { success: false, error: profileError };
+    // Create user record in the users table with try/catch
+    try {
+      const { error: profileError } = await client
+        .from('users')
+        .insert({
+          id: userId,
+          email: userData.email,
+          username: userData.username || `user_${userId.substring(0, 8)}`,
+          full_name: userData.full_name,
+          language: userData.language || 'en',
+          referral_code: referralCode,
+          referred_by: userData.referred_by,
+        });
+      
+      if (profileError) {
+        console.error('Error creating user profile:', profileError);
+        return { success: false, error: profileError };
+      }
+      
+      console.log("User profile created successfully");
+    } catch (insertEx) {
+      console.error('Exception during profile insertion:', insertEx);
+      return { success: false, error: insertEx };
     }
     
-    console.log("User profile created, creating initial balance");
+    console.log("Creating initial balance");
     
     // Create an initial balance for the user
-    const { error: balanceError } = await client
-      .from('balances')
-      .insert({
-        user_id: userId,
-        amount: 1000, // Initial balance of 1000 coins
-        currency: 'coins',
-      });
-    
-    if (balanceError) {
-      console.error('Error creating initial balance:', balanceError);
-      return { success: false, error: balanceError };
+    try {
+      const { error: balanceError } = await client
+        .from('balances')
+        .insert({
+          user_id: userId,
+          amount: 1000, // Initial balance of 1000 coins
+          currency: 'coins',
+        });
+      
+      if (balanceError) {
+        console.error('Error creating initial balance:', balanceError);
+        return { success: false, error: balanceError };
+      }
+      
+      console.log("Initial balance created successfully");
+    } catch (balanceEx) {
+      console.error('Exception during balance creation:', balanceEx);
+      return { success: false, error: balanceEx };
     }
     
     // If user was referred, process the referral reward
@@ -96,10 +130,27 @@ export async function createUserProfile(userId: string, userData: {
       console.log(`User was referred by ${userData.referred_by}, processing reward...`);
       try {
         await processReferralReward(userData.referred_by, userId);
-      } catch (error) {
-        console.error('Error processing referral reward:', error);
+      } catch (refError) {
+        console.error('Error processing referral reward:', refError);
         // Не возвращаем ошибку, так как профиль успешно создан
       }
+    }
+    
+    // Верификация создания профиля
+    try {
+      const { data: verifyProfile, error: verifyError } = await client
+        .from('users')
+        .select('id')
+        .eq('id', userId)
+        .single();
+        
+      if (verifyError) {
+        console.error('Failed to verify profile creation:', verifyError);
+      } else if (verifyProfile) {
+        console.log("Profile creation verified successfully");
+      }
+    } catch (verifyEx) {
+      console.error('Exception during profile verification:', verifyEx);
     }
     
     console.log("User setup completed successfully");
