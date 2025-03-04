@@ -127,7 +127,7 @@ export function AuthForm({ type, redirectPath = '/' }: AuthFormProps) {
             username: formData.username,
             full_name: formData.full_name,
             language: formData.language,
-            referred_by: storedReferrerId || referrerId // Используем сохраненный или текущий ID
+            referred_by: storedReferrerId || referrerId || undefined // Используем undefined вместо null
           }
         );
         if (error) {

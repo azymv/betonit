@@ -15,6 +15,7 @@ interface AuthContextType {
     username?: string;
     full_name?: string;
     language?: string;
+    referred_by?: string;
   }) => Promise<{ error: Error | null }>;
   signOut: () => Promise<{ error: Error | null }>;
 }
@@ -92,6 +93,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     username?: string;
     full_name?: string;
     language?: string;
+    referred_by?: string;
   }) => {
     try {
       // Базовый URL для редиректа после подтверждения
@@ -108,6 +110,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             username: userData?.username,
             full_name: userData?.full_name,
             language: userData?.language || 'en',
+            referred_by: userData?.referred_by
           }
         },
       });
