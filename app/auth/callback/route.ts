@@ -15,6 +15,12 @@ export async function GET(request: NextRequest) {
   const errorCode = requestUrl.searchParams.get('error_code');
   const errorDesc = requestUrl.searchParams.get('error_description');
   
+  // Get referral ID from URL if present
+  const refId = requestUrl.searchParams.get('ref_id');
+  if (refId) {
+    console.log("Got referral ID from URL:", refId);
+  }
+  
   // Log any errors from Supabase
   if (error || errorCode || errorDesc) {
     console.error("Auth callback error:", { error, errorCode, errorDesc });
@@ -45,6 +51,7 @@ export async function GET(request: NextRequest) {
             username: data.user.user_metadata?.username,
             full_name: data.user.user_metadata?.full_name,
             language: data.user.user_metadata?.language,
+            referred_by: refId || data.user.user_metadata?.referred_by, // Use URL param if available
           });
           
           if (result.error) {

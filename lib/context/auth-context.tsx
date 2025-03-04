@@ -120,12 +120,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       console.log('Sign up userData:', userData);
       
+      // Добавляем реферальный код в URL параметры
+      const referralCode = userData?.referred_by;
+      const redirectUrl = `${siteUrl}/auth/callback?redirect_to=/${locale}/profile${referralCode ? `&ref_id=${referralCode}` : ''}`;
+      
       // Используем новый серверный обработчик для аутентификации
       const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: `${siteUrl}/auth/callback?redirect_to=/${locale}/profile`,
+          emailRedirectTo: redirectUrl,
           data: {
             username: userData?.username,
             full_name: userData?.full_name,
