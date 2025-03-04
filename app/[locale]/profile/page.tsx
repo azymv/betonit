@@ -148,46 +148,104 @@ export default function ProfilePage() {
     setIsCreatingProfile(true);
     
     try {
-      // Создаем запись в таблице users
-      const { error: userError } = await supabase
+      // Сначала проверяем, существует ли уже пользователь
+      const { data: existingUser, error: checkError } = await supabase
         .from('users')
-        .insert({
-          id: user.id,
-          email: user.email || '',
-          username: user.user_metadata?.username || `user_${user.id.substring(0, 8)}`,
-          full_name: user.user_metadata?.full_name || '',
-          language: localeStr,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        });
+        .select('id')
+        .eq('id', user.id)
+        .single();
       
-      if (userError) {
-        console.error("Error creating user profile:", userError);
+      if (checkError && checkError.code !== 'PGRST116') {
+        // PGRST116 - это код ошибки "не найдено", который мы ожидаем
+        console.error("Error checking if user exists:", checkError);
         setError({
-          message: "Error creating profile",
-          details: userError.message
+          message: "Error checking user profile",
+          details: checkError.message
         });
         return;
       }
       
-      // Создаем начальный баланс
-      const { error: balanceError } = await supabase
-        .from('balances')
-        .insert({
-          user_id: user.id,
-          amount: 1000,
-          currency: 'coins',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        });
+      if (existingUser) {
+        console.log("User profile already exists, updating instead of creating");
+        // Обновляем существующий профиль
+        const { error: updateError } = await supabase
+          .from('users')
+          .update({
+            username: user.user_metadata?.username || `user_${user.id.substring(0, 8)}`,
+            full_name: user.user_metadata?.full_name || '',
+            language: localeStr,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', user.id);
+        
+        if (updateError) {
+          console.error("Error updating user profile:", updateError);
+          setError({
+            message: "Error updating profile",
+            details: updateError.message
+          });
+          return;
+        }
+      } else {
+        // Создаем новую запись в таблице users
+        const { error: userError } = await supabase
+          .from('users')
+          .insert({
+            id: user.id,
+            email: user.email || '',
+            username: user.user_metadata?.username || `user_${user.id.substring(0, 8)}`,
+            full_name: user.user_metadata?.full_name || '',
+            language: localeStr,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
+        
+        if (userError) {
+          console.error("Error creating user profile:", userError);
+          setError({
+            message: "Error creating profile",
+            details: userError.message
+          });
+          return;
+        }
+      }
       
-      if (balanceError) {
-        console.error("Error creating balance:", balanceError);
+      // Проверяем, существует ли уже баланс
+      const { data: existingBalance, error: balanceCheckError } = await supabase
+        .from('balances')
+        .select('user_id')
+        .eq('user_id', user.id)
+        .single();
+      
+      if (balanceCheckError && balanceCheckError.code !== 'PGRST116') {
+        console.error("Error checking if balance exists:", balanceCheckError);
         setError({
-          message: "Error creating balance",
-          details: balanceError.message
+          message: "Error checking balance",
+          details: balanceCheckError.message
         });
         return;
+      }
+      
+      if (!existingBalance) {
+        // Создаем начальный баланс только если его еще нет
+        const { error: balanceError } = await supabase
+          .from('balances')
+          .insert({
+            user_id: user.id,
+            amount: 1000,
+            currency: 'coins',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
+        
+        if (balanceError) {
+          console.error("Error creating balance:", balanceError);
+          setError({
+            message: "Error creating balance",
+            details: balanceError.message
+          });
+          return;
+        }
       }
       
       // Перезагружаем данные
