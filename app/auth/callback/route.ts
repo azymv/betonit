@@ -40,9 +40,55 @@ export async function GET(request: NextRequest) {
         return NextResponse.redirect(new URL(`/${defaultLocale}/auth/error`, requestUrl.origin));
       }
       
-      console.log("User authenticated:", data.user.id);
+      console.log("User authenticated, creating profile:", data.user.id);
       
-      // Теперь вместо перенаправления на профиль, перенаправляем на страницу входа с успехом
+      // Автоматически создаем профиль пользователя
+      try {
+        // Генерируем уникальный код
+        const referralCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+        
+        // Создаем запись пользователя
+        const { error: userError } = await supabase
+          .from('users')
+          .upsert({
+            id: data.user.id,
+            email: data.user.email || '',
+            username: data.user.user_metadata?.username || `user_${data.user.id.substring(0, 8)}`,
+            full_name: data.user.user_metadata?.full_name || '',
+            language: data.user.user_metadata?.language || defaultLocale,
+            referral_code: referralCode,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'id' });
+        
+        if (userError) {
+          console.error("Error creating user profile:", userError);
+        } else {
+          console.log("User profile created successfully");
+          
+          // Создаем начальный баланс
+          const { error: balanceError } = await supabase
+            .from('balances')
+            .upsert({
+              user_id: data.user.id,
+              amount: 1000,
+              currency: 'coins',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }, { onConflict: 'user_id, currency' });
+          
+          if (balanceError) {
+            console.error("Error creating balance:", balanceError);
+          } else {
+            console.log("Balance created successfully");
+          }
+        }
+      } catch (createError) {
+        console.error("Error in automatic profile creation:", createError);
+      }
+      
+      // Перенаправляем на страницу входа с успехом
+      console.log("Auth callback completed, redirecting to signin page");
       return NextResponse.redirect(new URL(`/${defaultLocale}/auth/signin?success=true`, requestUrl.origin));
     } catch (error) {
       console.error("Exception in auth callback:", error);

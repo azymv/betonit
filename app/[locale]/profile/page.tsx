@@ -67,7 +67,6 @@ export default function ProfilePage() {
   const [betStats, setBetStats] = useState<BetStatistics>({ total: 0, won: 0, lost: 0, winRate: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<{ message: string; details?: string } | null>(null);
-  const [isCreatingProfile, setIsCreatingProfile] = useState(false);
   
   // Вычисление статистики ставок
   const calculateBetStats = (bets: BetWithEvent[]): BetStatistics => {
@@ -172,89 +171,6 @@ export default function ProfilePage() {
     }
   };
   
-  // Создание профиля
-  const createProfile = async () => {
-    if (!user) return;
-    
-    setIsCreatingProfile(true);
-    console.log("Starting profile creation for user:", user.id);
-    
-    try {
-      // Генерируем уникальный реферальный код
-      const referralCode = Math.random().toString(36).substring(2, 10);
-      
-      // Создаем новую запись в таблице users
-      console.log("Creating user record with data:", {
-        id: user.id,
-        email: user.email,
-        username: user.user_metadata?.username || `user_${user.id.substring(0, 8)}`,
-        referral_code: referralCode
-      });
-      
-      const { error: userError } = await supabase
-        .from('users')
-        .upsert({
-          id: user.id,
-          email: user.email || '',
-          username: user.user_metadata?.username || `user_${user.id.substring(0, 8)}`,
-          full_name: user.user_metadata?.full_name || '',
-          language: localeStr,
-          referral_code: referralCode,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'id' });
-      
-      if (userError) {
-        console.error("Error creating user profile:", userError);
-        setError({
-          message: "Error creating profile",
-          details: formatErrorMessage(userError)
-        });
-        return;
-      }
-      
-      console.log("User profile created successfully, creating balance");
-      
-      // Создаем начальный баланс
-      const { error: balanceError } = await supabase
-        .from('balances')
-        .upsert({
-          user_id: user.id,
-          amount: 1000,
-          currency: 'coins',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'user_id' });
-      
-      if (balanceError) {
-        console.error("Error creating balance:", balanceError);
-        setError({
-          message: "Error creating balance",
-          details: formatErrorMessage(balanceError)
-        });
-        return;
-      }
-      
-      console.log("Balance created successfully, reloading profile data");
-      
-      // Устанавливаем баланс в состоянии
-      setBalance(1000);
-      
-      // Перезагружаем данные профиля
-      await loadProfileData();
-      
-      console.log("Profile creation completed successfully");
-    } catch (err) {
-      console.error("Error in profile creation:", err);
-      setError({
-        message: "Error in profile creation",
-        details: err instanceof Error ? err.message : String(err)
-      });
-    } finally {
-      setIsCreatingProfile(false);
-    }
-  };
-  
   // Используем useEffect для загрузки данных при монтировании компонента
   useEffect(() => {
     if (user && !isAuthLoading) {
@@ -281,9 +197,7 @@ export default function ProfilePage() {
   
   // Получение статуса ставки
   const getBetStatusBadge = (bet: BetWithEvent) => {
-    const event = bet.events;
-    
-    if (!event) return null;
+    const event = bet.events || { status: '', result: null };
     
     if (bet.status === 'won') {
       return <Badge className="bg-green-500">{t('profile.bets.won')}</Badge>;
@@ -295,36 +209,6 @@ export default function ProfilePage() {
       return <Badge variant="secondary">{t('profile.bets.active')}</Badge>;
     }
   };
-  
-  // Отображение экрана создания профиля
-  const renderProfileCreation = () => (
-    <div className="container py-8">
-      <Card className="max-w-md mx-auto">
-        <CardHeader>
-          <CardTitle>{t('profile.title')}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="mb-6">
-            Для доступа к профилю необходимо завершить регистрацию. Нажмите кнопку ниже, чтобы создать профиль.
-          </p>
-          <Button 
-            onClick={createProfile} 
-            disabled={isCreatingProfile}
-            className="w-full"
-          >
-            {isCreatingProfile ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {t('common.processing')}
-              </>
-            ) : (
-              "Создать профиль"
-            )}
-          </Button>
-        </CardContent>
-      </Card>
-    </div>
-  );
   
   // Показываем состояние загрузки
   if (isLoading || isAuthLoading) {
@@ -341,44 +225,42 @@ export default function ProfilePage() {
     );
   }
   
-  // Показываем ошибку
+  // Отображение ошибки
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center py-12">
-        <div className="mb-6 max-w-xl">
-          <Alert variant="destructive" className="mb-4">
-            <AlertCircle className="h-4 w-4 mr-2" />
-            <AlertTitle>{t('errors.title')}</AlertTitle>
-            <AlertDescription>
-              {error.message}
-              {error.details && (
-                <>
-                  <br />
-                  <strong>Подробности:</strong> {error.details}
-                </>
-              )}
-            </AlertDescription>
-          </Alert>
+      <div className="container py-8">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4 mr-2" />
+          <AlertTitle>{t('errors.title')}</AlertTitle>
+          <AlertDescription>
+            {error.message}
+            {error.details && (
+              <>
+                <br />
+                <strong>Подробности:</strong> {error.details}
+              </>
+            )}
+          </AlertDescription>
+        </Alert>
+        
+        <div className="flex space-x-4">
+          <Button 
+            onClick={() => {
+              setError(null);
+              loadProfileData();
+            }}
+            className="flex-1"
+          >
+            Повторить
+          </Button>
           
-          <div className="flex space-x-4">
-            <Button 
-              onClick={() => {
-                setError(null);
-                loadProfileData();
-              }}
-              className="flex-1"
-            >
-              Повторить
-            </Button>
-            
-            <Button 
-              variant="outline" 
-              onClick={() => router.push(`/${localeStr}`)}
-              className="flex-1"
-            >
-              На главную
-            </Button>
-          </div>
+          <Button 
+            variant="outline" 
+            onClick={() => router.push(`/${localeStr}`)}
+            className="flex-1"
+          >
+            На главную
+          </Button>
         </div>
       </div>
     );
@@ -386,11 +268,32 @@ export default function ProfilePage() {
   
   // Пользователь авторизован, но профиль не создан
   if (!isLoading && user && !isAuthLoading) {
-    // Проверяем, есть ли данные профиля
-    const hasProfileData = userBets.length > 0 || balance > 0;
+    // Проверяем загружены ли данные
+    const profileLoaded = userBets !== undefined || balance !== undefined;
     
-    if (!hasProfileData) {
-      return renderProfileCreation();
+    // Если данные загружены, но нет ставок и баланс равен 0, показываем обычный профиль
+    // без кнопки создания профиля
+    if (profileLoaded) {
+      // Просто продолжаем отображение профиля ниже
+    } else {
+      // Если профиль не загружен, показываем сообщение об ошибке
+      return (
+        <div className="container py-8">
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4 mr-2" />
+            <AlertTitle>Ошибка загрузки профиля</AlertTitle>
+            <AlertDescription>
+              Не удалось загрузить ваш профиль. Пожалуйста, попробуйте войти снова или обратитесь в поддержку.
+            </AlertDescription>
+          </Alert>
+          <Button 
+            className="mt-4"
+            onClick={() => router.push(`/${localeStr}/auth/signin`)}
+          >
+            Вернуться на страницу входа
+          </Button>
+        </div>
+      );
     }
   }
   
