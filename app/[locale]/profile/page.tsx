@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useTranslation } from '@/lib/i18n-config';
 import { useAuth } from '@/lib/context/auth-context';
@@ -127,7 +127,7 @@ export default function ProfilePage() {
   };
   
   // Загрузка данных профиля
-  const loadProfileData = async () => {
+  const loadProfileData = useCallback(async () => {
     setDataLoadAttempted(true);
     setIsLoading(true);
     setError(null);
@@ -273,7 +273,7 @@ export default function ProfilePage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user, router, localeStr, supabase, calculateBetStats]);
   
   // Добавляем таймаут для состояния загрузки аутентификации
   useEffect(() => {
@@ -305,7 +305,7 @@ export default function ProfilePage() {
         clearTimeout(authTimeoutRef.current);
       }
     };
-  }, [isAuthLoading, authTimedOut, user, router, localeStr]);
+  }, [isAuthLoading, authTimedOut, user, router, localeStr, loadProfileData]);
   
   // Загрузка данных только при первом рендере или изменении пользователя
   useEffect(() => {
@@ -327,7 +327,7 @@ export default function ProfilePage() {
     return () => {
       isMounted.current = false;
     };
-  }, [user, isAuthLoading, authTimedOut, router, localeStr, dataLoadAttempted]);
+  }, [user, isAuthLoading, authTimedOut, router, localeStr, dataLoadAttempted, loadProfileData]);
   
   // Добавляем обработчик ошибок для отладки
   useEffect(() => {
