@@ -14,30 +14,6 @@ interface ReferralInfoResponse {
 }
 
 /**
- * Генерирует уникальный реферальный код
- * 
- * @param userId ID пользователя для создания более уникального кода
- * @param length Длина кода (по умолчанию 8 символов)
- * @returns Уникальный реферальный код
- */
-export function generateReferralCode(userId: string, length: number = 8): string {
-  // Используем первые 4 символа ID пользователя как основу
-  const userIdBase = userId.substring(0, 4);
-  
-  // Добавляем случайные символы для уникальности
-  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let result = userIdBase;
-  
-  // Добавляем случайные символы до достижения нужной длины
-  const remainingLength = Math.max(0, length - userIdBase.length);
-  for (let i = 0; i < remainingLength; i++) {
-    result += characters.charAt(Math.floor(Math.random() * characters.length));
-  }
-  
-  return result;
-}
-
-/**
  * Получает информацию о рефералах пользователя
  * 
  * @param userId ID пользователя
@@ -140,6 +116,40 @@ export async function processFirstBet(userId: string): Promise<{ error: Error | 
     return { error: null };
   } catch (error) {
     console.error("Exception in processFirstBet:", error);
+    return { error: error instanceof Error ? error : new Error(String(error)) };
+  }
+}
+
+/**
+ * Creates a unique referral code for a user and updates their record in the database
+ * 
+ * @param userId The user ID to create a referral code for
+ * @returns Object with the referral code or error
+ */
+export async function createReferralCode(userId: string): Promise<{ referralCode?: string; error: Error | null }> {
+  try {
+    const supabase = createServerActionClient<Database>({ cookies });
+    
+    // Import the utility function here to avoid circular dependencies
+    const { generateReferralCode } = await import('../utils/referral-utils');
+    
+    // Generate a unique referral code
+    const referralCode = generateReferralCode(userId);
+    
+    // Update the user record with the new referral code
+    const { error } = await supabase
+      .from('users')
+      .update({ referral_code: referralCode })
+      .eq('id', userId);
+    
+    if (error) {
+      console.error("Error updating user with referral code:", error);
+      return { error };
+    }
+    
+    return { referralCode, error: null };
+  } catch (error) {
+    console.error("Exception in createReferralCode:", error);
     return { error: error instanceof Error ? error : new Error(String(error)) };
   }
 }
