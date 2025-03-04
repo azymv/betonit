@@ -26,11 +26,12 @@ export async function middleware(request: NextRequest) {
   // Проверяем, является ли запрос запросом на аутентификацию с кодом
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
+  const token = requestUrl.searchParams.get('token');
   const type = requestUrl.searchParams.get('type');
   
   // Если это запрос на аутентификацию с кодом, перенаправляем на серверный обработчик
   // Но только если мы еще не находимся на странице /auth/callback
-  if (code && (type === 'signup' || type === 'recovery') && !pathname.includes('/auth/callback')) {
+  if ((code || (token && type === 'signup')) && !pathname.includes('/auth/callback')) {
     console.log('Redirecting authentication request to server-side handler');
     
     // Сохраняем все параметры запроса
