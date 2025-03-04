@@ -31,6 +31,12 @@ export async function middleware(request: NextRequest) {
   // Если путь не содержит локаль, добавляем локаль по умолчанию
   if (!pathnameHasLocale) {
     const url = new URL(`/${defaultLocale}${pathname}`, request.url);
+    
+    // Копируем все параметры запроса
+    request.nextUrl.searchParams.forEach((value, key) => {
+      url.searchParams.set(key, value);
+    });
+    
     return NextResponse.redirect(url);
   }
   
