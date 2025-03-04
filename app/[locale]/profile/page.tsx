@@ -94,7 +94,7 @@ export default function ProfilePage() {
   // Функция для генерации реферального кода
   
   // Вычисление статистики ставок
-  const calculateBetStats = (bets: BetWithEvent[]): BetStatistics => {
+  const calculateBetStats = useCallback((bets: BetWithEvent[]): BetStatistics => {
     const total = bets.length;
     const won = bets.filter(bet => bet.status === 'won').length;
     const lost = bets.filter(bet => bet.status === 'lost').length;
@@ -106,7 +106,7 @@ export default function ProfilePage() {
       lost,
       winRate
     };
-  };
+  }, []);
   
   // Загрузка данных профиля
   const loadProfileData = useCallback(async () => {
