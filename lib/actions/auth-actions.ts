@@ -1,11 +1,11 @@
 'use server';
 
 import { createServerActionClient } from '@supabase/auth-helpers-nextjs';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { Database } from '@/lib/types/supabase';
-import { processReferralReward } from './referral-actions';
 
+// Функция для создания профиля пользователя
 export async function createUserProfile(userId: string, userData: {
   email: string;
   username?: string;
@@ -32,7 +32,7 @@ export async function createUserProfile(userId: string, userData: {
     
     if (existingUser) {
       console.log('User profile already exists, skipping creation');
-      return { error: null };
+      return { success: true, existing: true, error: null };
     }
     
     console.log('User does not exist yet, creating profile');
@@ -72,7 +72,7 @@ export async function createUserProfile(userId: string, userData: {
     
     if (profileError) {
       console.error('Error creating user profile:', profileError);
-      return { error: profileError };
+      return { success: false, error: profileError };
     }
     
     console.log("User profile created, creating initial balance");
@@ -88,7 +88,7 @@ export async function createUserProfile(userId: string, userData: {
     
     if (balanceError) {
       console.error('Error creating initial balance:', balanceError);
-      return { error: balanceError };
+      return { success: false, error: balanceError };
     }
     
     // If user was referred, process the referral reward
@@ -98,59 +98,124 @@ export async function createUserProfile(userId: string, userData: {
         await processReferralReward(userData.referred_by, userId);
       } catch (error) {
         console.error('Error processing referral reward:', error);
-        // Don't return error here, as the user profile was created successfully
+        // Не возвращаем ошибку, так как профиль успешно создан
       }
     }
     
     console.log("User setup completed successfully");
-    return { error: null };
+    return { success: true, error: null };
   } catch (error) {
     console.error('Exception in createUserProfile:', error);
-    return { error: error as Error };
+    return { success: false, error: error as Error };
   }
 }
 
-export async function createProfileIfNeeded(userId: string, userData: {
-  email: string;
-  username?: string;
-  full_name?: string;
-  language?: string;
-  referred_by?: string | null;
-}) {
-  console.log("Checking if profile needs to be created for:", userId);
+// Функция для обработки реферального вознаграждения
+export async function processReferralReward(referrerId: string, referredId: string) {
+  console.log(`Processing referral reward: referrer=${referrerId}, referred=${referredId}`);
   
   try {
-    const supabase = createServerActionClient<Database>({ cookies });
+    // Use admin client if available, otherwise use regular client
+    let supabase;
     
-    // Проверяем существование профиля
-    const { data: existingUser, error: checkError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('id', userId)
+    if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.log("Using service role client for referral reward");
+      supabase = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_SERVICE_ROLE_KEY
+      );
+    } else {
+      console.log("Service role key not available, using regular client");
+      supabase = createServerActionClient<Database>({ cookies });
+    }
+    
+    // Create referral reward record
+    const { error: rewardError } = await supabase
+      .from('referral_rewards')
+      .insert({
+        referrer_id: referrerId,
+        referred_id: referredId,
+        status: 'completed',
+      });
+      
+    if (rewardError) {
+      console.error('Error creating referral reward:', rewardError);
+      return { success: false, error: rewardError };
+    }
+    
+    // Обновляем баланс реферера (+100 монет)
+    const { success: referrerSuccess, error: referrerError } = await updateUserBalance(supabase, referrerId, 100);
+    
+    if (!referrerSuccess) {
+      console.error('Error updating referrer balance:', referrerError);
+      return { success: false, error: referrerError };
+    }
+    
+    // Обновляем баланс приглашенного пользователя (+50 монет)
+    const { success: referredSuccess, error: referredError } = await updateUserBalance(supabase, referredId, 50);
+    
+    if (!referredSuccess) {
+      console.error('Error updating referred user balance:', referredError);
+      return { success: false, error: referredError };
+    }
+    
+    console.log("Referral reward processed successfully");
+    return { success: true, error: null };
+  } catch (error) {
+    console.error('Exception in processReferralReward:', error);
+    return { success: false, error: error as Error };
+  }
+}
+
+// Вспомогательная функция для обновления баланса
+async function updateUserBalance(
+  supabase: SupabaseClient, 
+  userId: string, 
+  amount: number
+): Promise<{ success: boolean; error?: unknown }> {
+  try {
+    // Получаем текущий баланс
+    const { data: balanceData, error: balanceError } = await supabase
+      .from('balances')
+      .select('id, amount')
+      .eq('user_id', userId)
+      .eq('currency', 'coins')
       .single();
-    
-    // Если профиль уже существует, просто возвращаем успех
-    if (!checkError && existingUser) {
-      console.log('User profile already exists');
-      return { success: true, existing: true };
-    }
-    
-    // Если ошибка не связана с отсутствием профиля
-    if (checkError && checkError.code !== 'PGRST116') {
-      console.error('Error checking profile existence:', checkError);
-      return { success: false, error: checkError.message };
-    }
-    
-    // Создаем профиль
-    const result = await createUserProfile(userId, userData);
-    
-    if (result.error) {
-      return { success: false, error: result.error };
+      
+    if (balanceError) {
+      if (balanceError.code === 'PGRST116') {
+        // Если баланс не найден, создаем новый
+        const { error: createError } = await supabase
+          .from('balances')
+          .insert({
+            user_id: userId,
+            amount: amount,
+            currency: 'coins',
+          });
+          
+        if (createError) {
+          return { success: false, error: createError };
+        }
+      } else {
+        return { success: false, error: balanceError };
+      }
+    } else {
+      // Обновляем существующий баланс
+      const { error: updateError } = await supabase
+        .from('balances')
+        .update({ 
+          amount: balanceData.amount + amount,
+          updated_at: new Date()
+        })
+        .eq('id', balanceData.id);
+        
+      if (updateError) {
+        return { success: false, error: updateError };
+      }
     }
     
     return { success: true };
   } catch (error) {
-    console.error('Exception in createProfileIfNeeded:', error);
-    return { success: false, error: error as Error };
+    return { success: false, error };
   }
 }

@@ -8,7 +8,6 @@ export default function AuthCallbackPage() {
   
   useEffect(() => {
     // Redirect to the base auth callback route
-    // This ensures any verification tokens get passed to the API route
     const currentUrl = new URL(window.location.href);
     const newUrl = new URL('/auth/callback', currentUrl.origin);
     
@@ -25,8 +24,8 @@ export default function AuthCallbackPage() {
   return (
     <div className="flex justify-center items-center h-screen">
       <div className="text-center">
-        <h2 className="text-xl font-semibold mb-4">Redirecting...</h2>
-        <p>Please wait while we complete your authentication.</p>
+        <h2 className="text-xl font-semibold mb-4">Перенаправление...</h2>
+        <p>Пожалуйста, подождите, пока мы завершаем вашу аутентификацию.</p>
       </div>
     </div>
   );

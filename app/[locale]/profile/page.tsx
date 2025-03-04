@@ -188,40 +188,11 @@ export default function ProfilePage() {
         
         if (userError) {
           console.error("Error loading user data:", userError);
-          
-          // Если пользователь не найден, пытаемся создать профиль
-          if (userError.code === 'PGRST116') {
-            console.log("User profile not found, creating profile");
-            
-            const { createProfileIfNeeded } = await import('@/lib/actions/auth-actions');
-            const result = await createProfileIfNeeded(user.id, {
-              email: user.email || '',
-              username: user.user_metadata?.username,
-              full_name: user.user_metadata?.full_name,
-              language: localeStr || 'en',
-              referred_by: user.user_metadata?.referred_by,
-            });
-            
-            if (result.success) {
-              console.log("Profile created successfully, reloading data");
-              // Повторно загружаем данные после создания профиля
-              loadProfileData();
-              return;
-            } else {
-              console.error("Failed to create profile:", result.error);
-              setError({
-                message: "Failed to create profile",
-                details: result.error && typeof result.error === 'object' && 'message' in result.error 
-                  ? String(result.error.message) 
-                  : "Unknown error"
-              });
-            }
-          } else {
-            setError({
-              message: "Error loading user data",
-              details: userError.message
-            });
-          }
+          setError({
+            message: "Ошибка загрузки данных пользователя",
+            details: userError.message
+          });
+        
         } else if (userData) {
           setReferralCode(userData.referral_code || '');
         }

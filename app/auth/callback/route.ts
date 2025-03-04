@@ -66,17 +66,24 @@ export async function GET(request: NextRequest) {
           } catch (err) {
             console.error("Error finding referrer:", err);
           }
+        } else {
+          // Проверяем, есть ли реферальный код в метаданных пользователя
+          referrerId = data.user.user_metadata?.referred_by;
         }
         
-        // Создаем профиль с максимальной надежностью
-        // Не обрабатываем ошибки, так как они уже логируются в функции
-        await createUserProfile(data.user.id, {
+        // Создаем профиль пользователя
+        const result = await createUserProfile(data.user.id, {
           email: data.user.email as string,
           username: data.user.user_metadata?.username,
           full_name: data.user.user_metadata?.full_name,
-          language: data.user.user_metadata?.language,
+          language: data.user.user_metadata?.language || defaultLocale,
           referred_by: referrerId || data.user.user_metadata?.referred_by,
         });
+        
+        if (!result.success) {
+          console.error("Error creating user profile:", result.error);
+          // Продолжаем выполнение, так как главное - сессия создана
+        }
       } else {
         console.error("No user found after code exchange");
       }
