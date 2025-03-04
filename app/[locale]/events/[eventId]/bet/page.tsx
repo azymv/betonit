@@ -128,7 +128,16 @@ export default function PlaceBetPage() {
         console.log('Current user:', user);
         setDebugInfo(prev => ({ ...prev, fullUserData: user }));
 
-        const supabase = createClientComponentClient<Database>();
+        const supabase = createClientComponentClient<Database>({
+          options: {
+            global: {
+              headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+              }
+            }
+          }
+        });
         
         // Проверка параметров запроса
         console.log('Event ID being used:', eventIdStr);

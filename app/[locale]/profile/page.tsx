@@ -49,12 +49,13 @@ export default function ProfilePage() {
   const router = useRouter();
   const { user, isLoading: isAuthLoading } = useAuth();
   
-  // Создаем клиент Supabase с нужными заголовками
+  // Создаем клиент с правильными заголовками
   const supabase = createClientComponentClient<Database>({
     options: {
       global: {
         headers: {
-          'Accept': 'application/json'
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
         }
       }
     }

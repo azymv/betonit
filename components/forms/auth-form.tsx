@@ -36,6 +36,16 @@ export function AuthForm({ type, redirectPath = '/' }: AuthFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [referrerId, setReferrerId] = useState<string | null>(null);
+  const supabase = createClientComponentClient<Database>({
+    options: {
+      global: {
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      }
+    }
+  });
   
   const { signIn, signUp } = useAuth();
   const router = useRouter();
@@ -53,7 +63,6 @@ export function AuthForm({ type, redirectPath = '/' }: AuthFormProps) {
       
       const fetchReferrer = async () => {
         try {
-          const supabase = createClientComponentClient<Database>();
           const { data, error } = await supabase
             .from('users')
             .select('id')

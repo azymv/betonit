@@ -26,7 +26,16 @@ export default function EventsPage() {
     const fetchEvents = async () => {
       setIsLoading(true);
       try {
-        const supabase = createClientComponentClient<Database>();
+        const supabase = createClientComponentClient<Database>({
+          options: {
+            global: {
+              headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+              }
+            }
+          }
+        });
         
         // Строим запрос
         let query = supabase.from('events').select('*');

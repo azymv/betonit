@@ -35,7 +35,16 @@ export default function EventPage() {
     const fetchEvent = async () => {
       setIsLoading(true);
       try {
-        const supabase = createClientComponentClient<Database>();
+        const supabase = createClientComponentClient<Database>({
+          options: {
+            global: {
+              headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+              }
+            }
+          }
+        });
         
         // Получаем событие
         const { data: eventData, error: eventError } = await supabase
