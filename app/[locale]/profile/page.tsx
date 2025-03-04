@@ -8,14 +8,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Database } from '@/lib/types/supabase';
-import { getUserReferralInfo } from '@/lib/actions/referral-actions';
-import { User, ListTodo, Loader2, AlertCircle, BarChart3, Link, Users, Coins, Copy, Check } from 'lucide-react';
+import { User, ListTodo, Loader2, AlertCircle, BarChart3 } from 'lucide-react';
 import { useAnalytics } from '@/components/analytics/analytics-provider';
-import { ANALYTICS_EVENTS } from '@/lib/analytics/mixpanel';
+import { ReferralTab } from '@/components/referral/ReferralTab';
 
 // Типы из Database
 type Bet = Database['public']['Tables']['bets']['Row'];
@@ -52,7 +50,7 @@ export default function ProfilePage() {
   const { t } = useTranslation(localeStr);
   const router = useRouter();
   const { user, isLoading: isAuthLoading } = useAuth();
-  const { track } = useAnalytics();
+  const { /* track */ } = useAnalytics();
   
   // Создаем клиент с правильными заголовками
   const supabase = createClientComponentClient<Database>({
@@ -72,14 +70,6 @@ export default function ProfilePage() {
   const [betStats, setBetStats] = useState<BetStatistics>({ total: 0, won: 0, lost: 0, winRate: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<{ message: string; details?: string } | null>(null);
-  const [linkCopied, setLinkCopied] = useState(false);
-  const [referralInfo, setReferralInfo] = useState<{
-    referralLink: string;
-    referralCode: string;
-    totalReferrals: number;
-    activeReferrals: number;
-    totalEarned: number;
-  } | null>(null);
   
   // Вычисление статистики ставок
   const calculateBetStats = (bets: BetWithEvent[]): BetStatistics => {
@@ -174,32 +164,6 @@ export default function ProfilePage() {
         setBetStats(calculateBetStats(betsData as BetWithEvent[]));
       }
       
-      // Загружаем информацию о рефералах
-      console.log("Fetching referral info for user:", user.id);
-      try {
-        const referralResult = await getUserReferralInfo(user.id);
-        
-        if (referralResult.error) {
-          console.error("Error loading referral info:", referralResult.error);
-        } else {
-          setReferralInfo({
-            referralLink: referralResult.referralLink || '',
-            referralCode: referralResult.referralCode || '',
-            totalReferrals: referralResult.totalReferrals || 0,
-            activeReferrals: referralResult.activeReferrals || 0,
-            totalEarned: referralResult.totalEarned || 0
-          });
-          
-          // Отслеживаем просмотр страницы рефералов
-          track(ANALYTICS_EVENTS.VIEW_PROFILE, {
-            userId: user.id,
-            hasReferrals: (referralResult.totalReferrals || 0) > 0
-          });
-        }
-      } catch (referralErr) {
-        console.error("Exception loading referral info:", referralErr);
-      }
-      
     } catch (err) {
       console.error("Error loading profile data:", err);
       setError({
@@ -247,21 +211,6 @@ export default function ProfilePage() {
       return <Badge variant="outline">{t('profile.bets.waiting')}</Badge>;
     } else {
       return <Badge variant="secondary">{t('profile.bets.active')}</Badge>;
-    }
-  };
-  
-  // Копирование реферальной ссылки
-  const copyReferralLink = () => {
-    if (referralInfo?.referralLink) {
-      navigator.clipboard.writeText(referralInfo.referralLink);
-      setLinkCopied(true);
-      setTimeout(() => setLinkCopied(false), 2000);
-      
-      // Отслеживаем событие копирования реферальной ссылки
-      track(ANALYTICS_EVENTS.REFERRAL_LINK_COPIED, {
-        userId: user?.id,
-        referralCode: referralInfo.referralCode
-      });
     }
   };
   
@@ -502,78 +451,7 @@ export default function ProfilePage() {
                 
                 {/* Вкладка с реферальной программой */}
                 <TabsContent value="referrals" className="mt-0">
-                  {!referralInfo ? (
-                    <div className="text-center py-4">
-                      <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
-                      <p className="text-muted-foreground">{t('common.loading')}</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-6">
-                      {/* Реферальная ссылка */}
-<div className="mb-4">
-  <h3 className="text-lg font-medium mb-2 flex items-center">
-    <Link className="h-4 w-4 mr-2" />
-    {t('referral.yourLink')}
-  </h3>
-  <div className="flex space-x-2">
-    <Input 
-      value={referralInfo.referralLink} 
-      readOnly 
-      className="flex-1 font-mono text-sm"
-    />
-    <Button onClick={copyReferralLink} className="shrink-0">
-      {linkCopied ? (
-        <span className="flex items-center">
-          <Check className="h-4 w-4 mr-2" />
-          {t('referral.linkCopied')}
-        </span>
-      ) : (
-        <span className="flex items-center">
-          <Copy className="h-4 w-4 mr-2" />
-          {t('referral.copyLink')}
-        </span>
-      )}
-    </Button>
-  </div>
-</div>
-                      
-                      {/* Статистика рефералов */}
-                      <div className="grid grid-cols-3 gap-4 text-center">
-                        <div className="p-4 bg-slate-50 rounded-lg dark:bg-slate-800">
-                          <Users className="h-8 w-8 text-primary mx-auto mb-2" />
-                          <p className="text-2xl font-bold">{referralInfo.totalReferrals}</p>
-                          <p className="text-sm text-muted-foreground">{t('referral.stats.invited')}</p>
-                        </div>
-                        
-                        <div className="p-4 bg-slate-50 rounded-lg dark:bg-slate-800">
-                          <User className="h-8 w-8 text-primary mx-auto mb-2" />
-                          <p className="text-2xl font-bold">{referralInfo.activeReferrals}</p>
-                          <p className="text-sm text-muted-foreground">{t('referral.stats.active')}</p>
-                        </div>
-                        
-                        <div className="p-4 bg-slate-50 rounded-lg dark:bg-slate-800">
-                          <Coins className="h-8 w-8 text-primary mx-auto mb-2" />
-                          <p className="text-2xl font-bold">{referralInfo.totalEarned}</p>
-                          <p className="text-sm text-muted-foreground">{t('referral.stats.earned')}</p>
-                        </div>
-                      </div>
-                      
-                      {/* Информация о программе */}
-                      <div className="bg-slate-50 p-4 rounded-lg dark:bg-slate-800">
-                        <h3 className="font-semibold mb-2">{t('referral.howItWorks')}</h3>
-                        <ol className="list-decimal list-inside space-y-1 text-sm pl-2">
-                          <li>{t('referral.step1')}</li>
-                          <li>{t('referral.step2')}</li>
-                          <li>{t('referral.step3')}</li>
-                          <li>{t('referral.step4')}</li>
-                        </ol>
-                        <div className="mt-4 p-3 bg-green-50 dark:bg-green-950 rounded-md text-sm">
-                          <p className="text-green-700 dark:text-green-300">{t('referral.inviterBonus')}</p>
-                          <p className="text-green-700 dark:text-green-300">{t('referral.invitedBonus')}</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                  <ReferralTab userId={user!.id} locale={localeStr} />
                 </TabsContent>
               </CardContent>
             </Card>

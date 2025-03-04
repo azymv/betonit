@@ -14,7 +14,7 @@ interface AuthContextType {
     username?: string;
     full_name?: string;
     language?: string;
-    referred_by?: string;
+    referralCode?: string;
   }) => Promise<{ error: Error | null }>;
   signOut: () => Promise<{ error: Error | null }>;
 }
@@ -103,7 +103,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     username?: string;
     full_name?: string;
     language?: string;
-    referred_by?: string;
+    referralCode?: string;
   }) => {
     try {
       // Базовый URL для редиректа после подтверждения
@@ -114,17 +114,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Определяем локаль для редиректа
       const locale = userData?.language || 'en';
       
-      // Проверяем наличие API ключа
-      const apiKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-      console.log('API key exists:', !!apiKey);
-      
       console.log('Sign up userData:', userData);
+      console.log('Referral code in signUp:', userData?.referralCode);
+      
+      // Если указан реферальный код, получаем ID реферера
+      let referrerId = null;
+      
+      if (userData?.referralCode) {
+        try {
+          console.log('Looking up referrer for code:', userData.referralCode);
+          
+          // Получаем ID реферера по коду
+          const { data, error } = await supabase
+            .from('users')
+            .select('id')
+            .eq('referral_code', userData.referralCode)
+            .single();
+          
+          if (error) {
+            console.error('Error looking up referrer:', error);
+          } else if (data) {
+            referrerId = data.id;
+            console.log('Found referrer ID:', referrerId);
+            // Save referrer ID to sessionStorage for use after email confirmation
+            if (typeof window !== 'undefined') {
+              sessionStorage.setItem('referrerId', data.id);
+              console.log('Saved referrerId to sessionStorage:', data.id);
+            }
+          } else {
+            console.log('No referrer found for code:', userData.referralCode);
+          }
+        } catch (err) {
+          console.error('Exception looking up referrer:', err);
+        }
+      }
       
       // Добавляем реферальный код в URL параметры
-      const referralCode = userData?.referred_by;
+      const referralCode = userData?.referralCode;
       const redirectUrl = `${siteUrl}/auth/callback?redirect_to=/${locale}/profile${referralCode ? `&ref_id=${referralCode}` : ''}`;
+      console.log('Redirect URL with referral params:', redirectUrl);
       
-      // Используем новый серверный обработчик для аутентификации
+      // Добавляем реферальный код и ID реферера в метаданные пользователя
       const { error } = await supabase.auth.signUp({
         email,
         password,
@@ -134,7 +164,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             username: userData?.username,
             full_name: userData?.full_name,
             language: userData?.language || 'en',
-            referred_by: userData?.referred_by
+            referral_code: userData?.referralCode,
+            referred_by: referrerId
           }
         },
       });
@@ -142,11 +173,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('Sign up response error:', error);
       
       if (error) {
+        console.error('Sign up error:', error);
         return { error };
+      }
+      
+      // If signup successful and we have a referral code, save it to sessionStorage
+      if (referralCode && typeof window !== 'undefined') {
+        sessionStorage.setItem('referralCode', referralCode);
+        console.log('Saved referralCode to sessionStorage:', referralCode);
       }
       
       return { error: null };
     } catch (error) {
+      console.error('Exception during sign up:', error);
       return { error: error as Error };
     }
   };

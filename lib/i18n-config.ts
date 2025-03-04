@@ -195,6 +195,12 @@ export function getTranslation(locale: string, key: string): string {
 'referral.noReferrals': 'You haven\'t invited anyone yet',
 'referral.shareNow': 'Share your link now',
 'referral.invitedByUsername': 'You were invited by {username}',
+'referral.yourCode': 'Your Referral Code',
+'referral.enterCode': 'Referral Code',
+'referral.enterCodePlaceholder': 'Enter referral code (optional)',
+'referral.codeOptional': 'Optional: Enter the code if someone referred you',
+'referral.errorLoading': 'Error loading referral data',
+'referral.noData': 'No referral data available',
       
       // Footer
       'footer.tagline': 'Predict and earn',
@@ -398,6 +404,12 @@ export function getTranslation(locale: string, key: string): string {
 'referral.noReferrals': 'Вы еще никого не пригласили',
 'referral.shareNow': 'Поделитесь своей ссылкой сейчас',
 'referral.invitedByUsername': 'Вас пригласил {username}',
+'referral.yourCode': 'Ваш реферальный код',
+'referral.enterCode': 'Реферальный код',
+'referral.enterCodePlaceholder': 'Введите реферальный код (опционально)',
+'referral.codeOptional': 'Опционально: Введите код, если вас кто-то пригласил',
+'referral.errorLoading': 'Ошибка загрузки данных о рефералах',
+'referral.noData': 'Данные о рефералах недоступны',
       
       // Footer
       'footer.tagline': 'Предсказывай и зарабатывай',

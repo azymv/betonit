@@ -38,5 +38,5 @@ export interface AuthFormData {
   full_name: string;
   language: string;
   termsAccepted: boolean;
-  // Не нужно добавлять referred_by здесь, так как это внутреннее значение
+  referralCode?: string;
 }

@@ -2,14 +2,14 @@
 
 import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
-import { generateReferralCode } from '@/lib/utils/referral-utils';
+import { generateReferralCode } from '../utils/referral-utils'; // Обновленный импорт
 
 interface UserProfileData {
   email: string;
   username?: string;
   full_name?: string;
   language?: string;
-  referred_by?: string; // ID пользователя, пригласившего текущего
+  referred_by?: string; // Поле для ID пригласившего пользователя
 }
 
 /**
@@ -19,7 +19,7 @@ interface UserProfileData {
  * @param userData Данные пользователя для создания профиля
  */
 export async function createUserProfile(userId: string, userData: UserProfileData) {
-  console.log("Creating user profile with data:", userData);
+  console.log("Creating user profile for:", userId);
   
   try {
     const supabase = createServerComponentClient({ cookies });
@@ -48,7 +48,7 @@ export async function createUserProfile(userId: string, userData: UserProfileDat
       full_name: full_name || null,
       language: language || 'en',
       referral_code: referralCode,
-      referred_by: referred_by || null
+      referred_by: referred_by || null // Логируем значение
     });
     
     // Создаем запись пользователя в базе данных
@@ -61,10 +61,8 @@ export async function createUserProfile(userId: string, userData: UserProfileDat
         full_name: full_name || null,
         language: language || 'en',
         referral_code: referralCode,
-        referred_by: referred_by || null
+        referred_by: referred_by || null // Сохраняем ID пригласившего
       });
-    
-    console.log("User creation result, error:", userError);
     
     if (userError) {
       console.error("Error creating user:", userError);
@@ -83,23 +81,6 @@ export async function createUserProfile(userId: string, userData: UserProfileDat
     if (balanceError) {
       console.error("Error creating initial balance:", balanceError);
       return { error: balanceError };
-    }
-    
-    // Если есть пригласивший, создаем запись в таблице referral_rewards
-    // Награда будет начислена позже, после первой ставки
-    if (referred_by) {
-      const { error: referralError } = await supabase
-        .from('referral_rewards')
-        .insert({
-          referrer_id: referred_by,
-          referred_id: userId,
-          status: 'pending' // Статус "ожидающий" - награда будет начислена после первой ставки
-        });
-      
-      if (referralError) {
-        console.error("Error creating referral reward record:", referralError);
-        // Не возвращаем ошибку, так как основной профиль уже создан
-      }
     }
     
     console.log("User profile created successfully");

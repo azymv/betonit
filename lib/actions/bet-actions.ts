@@ -12,13 +12,6 @@ interface PlaceBetParams {
   prediction: boolean;
 }
 
-// Импортируем события из нашего существующего файла
-
-// Функцию trackMixpanelEvent мы не будем использовать, так как 
-// у нас уже есть интеграция с Mixpanel через lib/analytics/mixpanel.ts
-// На стороне сервера мы будем отслеживать события через API route
-// или отложенно в клиентской части
-
 export async function placeBet(params: PlaceBetParams) {
   try {
     const { eventId, userId, amount, prediction } = params;
@@ -141,47 +134,59 @@ export async function placeBet(params: PlaceBetParams) {
       // Не отменяем операцию, так как основная функциональность выполнена
     }
 
-    // 4. НОВОЕ: Проверка на первую ставку и обработка реферальной логики
-    const referralResult = await processFirstBet(userId, newBet.id);
+    // 4. Проверка на первую ставку и обработка реферальной логики
+    // В упрощенной версии реферальной программы нам нужно только проверить, 
+    // первая ли это ставка, и зафиксировать это в ответе
+    const firstBetResult = await checkFirstBet(userId, newBet.id);
     
-    if (referralResult.error) {
-      console.error('Error processing referral reward:', referralResult.error);
-      // Ошибка не критичная, продолжаем
-    }
-    
-    // 5. События для аналитики будут отслеживаться в клиентской части
-    // после возврата результата размещения ставки
-    // Это лучше всего делать с использованием вашей существующей системы
-    
-    // Подготовим информацию для аналитики в ответе
-    const analyticsData = {
-      eventId,
-      betId: newBet.id,
-      amount,
-      prediction: prediction ? 'yes' : 'no',
-      isFirstBet: referralResult.isFirstBet || false,
-      rewardProcessed: referralResult.rewardProcessed || false
-    };
-    
-    // Если это первая ставка с реферальной наградой, включаем дополнительную информацию
-    if (referralResult.isFirstBet && referralResult.rewardProcessed) {
-      Object.assign(analyticsData, {
-        referrerId: referralResult.referrerId,
-        referrerAmount: referralResult.referrerAmount,
-        referredAmount: referralResult.referredAmount,
-        referrerUsername: referralResult.referrerUsername,
-        userUsername: referralResult.userUsername
-      });
+    // Если это первая ставка, обрабатываем реферальную логику
+    if (firstBetResult) {
+      const { error: referralError } = await processFirstBet(userId);
+      if (referralError) {
+        console.error('Error processing referral for first bet:', referralError);
+        // Не прерываем выполнение, так как основная функциональность выполнена
+      }
     }
     
     return { 
       success: true, 
       betId: newBet.id,
-      isFirstBet: referralResult.isFirstBet || false,
-      rewardProcessed: referralResult.rewardProcessed || false 
+      isFirstBet: firstBetResult
     };
   } catch (err) {
     console.error('Error in placeBet:', err);
     return { error: 'Произошла ошибка при размещении ставки' };
+  }
+}
+
+/**
+ * Проверяет, является ли ставка первой для пользователя
+ * 
+ * @param userId ID пользователя
+ * @param betId ID текущей ставки
+ * @returns true, если это первая ставка пользователя
+ */
+async function checkFirstBet(userId: string, betId: string): Promise<boolean> {
+  try {
+    const supabase = createServerActionClient<Database>({ cookies });
+    
+    // Проверяем, есть ли предыдущие ставки пользователя
+    const { data: previousBets, error } = await supabase
+      .from('bets')
+      .select('id')
+      .eq('user_id', userId)
+      .neq('id', betId) // Исключаем текущую ставку
+      .limit(1);
+    
+    if (error) {
+      console.error('Error checking previous bets:', error);
+      return false;
+    }
+    
+    // Если предыдущих ставок нет, значит это первая ставка
+    return !previousBets || previousBets.length === 0;
+  } catch (err) {
+    console.error('Error in checkFirstBet:', err);
+    return false;
   }
 }

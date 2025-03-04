@@ -32,7 +32,8 @@ export function AuthForm({ type, redirectPath = '/' }: AuthFormProps) {
     username: '',
     full_name: '',
     language: 'en',
-    termsAccepted: false
+    termsAccepted: false,
+    referralCode: ''
   });
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -64,6 +65,12 @@ export function AuthForm({ type, redirectPath = '/' }: AuthFormProps) {
     const referralCode = searchParams.get('ref');
     console.log('Referral code from URL:', referralCode);
     if (referralCode && type === 'signup') {
+      // Обновляем состояние формы с реферальным кодом из URL
+      setFormData(prev => ({
+        ...prev,
+        referralCode: referralCode
+      }));
+      
       // Сохраняем код в sessionStorage для использования после подтверждения email
       sessionStorage.setItem('referralCode', referralCode);
       
@@ -95,10 +102,35 @@ export function AuthForm({ type, redirectPath = '/' }: AuthFormProps) {
     }
   }, [searchParams, type]);
   
+  // Добавляем новый useEffect для обработки изменений в URL
+  useEffect(() => {
+    // Если в URL есть параметр ref, сохраняем его в состоянии формы
+    const refCodeFromUrl = searchParams.get('ref');
+    console.log('Checking URL for referral code changes. Current URL code:', refCodeFromUrl, 'Current form code:', formData.referralCode);
+    
+    if (refCodeFromUrl && formData.referralCode !== refCodeFromUrl) {
+      console.log('Referral code in URL changed, updating form data from:', formData.referralCode, 'to:', refCodeFromUrl);
+      setFormData(prev => ({
+        ...prev,
+        referralCode: refCodeFromUrl
+      }));
+      
+      // Логирование для отладки
+      console.log('Updated form data with new referral code from URL');
+    }
+  }, [searchParams, formData.referralCode]);
+  
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    
+    // Add specific logging for referral code changes
+    if (name === 'referralCode') {
+      console.log('Referral code changed via handleChange:', value);
+    }
+    
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value,
+      [name]: value,
     });
   };
 
@@ -140,14 +172,20 @@ export function AuthForm({ type, redirectPath = '/' }: AuthFormProps) {
           router.push(`/${locale}${redirectPath}`);
         }
       } else if (type === 'signup') {
-        // Получаем сохраненный ID реферера
-        const storedReferrerId = sessionStorage.getItem('referrerId');
-        
         // For signup, if terms are not accepted, show error
         if (!formData.termsAccepted) {
           setError(t('auth.signup.acceptTermsError'));
           setIsLoading(false);
           return;
+        }
+
+        console.log('Submitting signup with referral code:', formData.referralCode);
+        
+        // Log referral information before signup
+        if (formData.referralCode) {
+          console.log('Referral code provided:', formData.referralCode);
+          console.log('Referrer ID from state:', referrerId);
+          console.log('Referrer username from state:', referrerUsername);
         }
 
         const { error } = await signUp(
@@ -157,13 +195,21 @@ export function AuthForm({ type, redirectPath = '/' }: AuthFormProps) {
             username: formData.username,
             full_name: formData.full_name,
             language: formData.language,
-            referred_by: storedReferrerId || referrerId || undefined // Используем undefined вместо null
+            referralCode: formData.referralCode
           }
         );
+        
+        console.log('Signup response received, error:', error);
+        
         if (error) {
           setError(error.message);
         } else {
           setIsSuccess(true);
+          
+          // If signup successful and we have a referral code, log it
+          if (formData.referralCode) {
+            console.log('Successful signup with referral code:', formData.referralCode);
+          }
         }
       }
     } catch (err) {
@@ -236,7 +282,6 @@ export function AuthForm({ type, redirectPath = '/' }: AuthFormProps) {
           </Alert>
         ) : (
           <form onSubmit={handleSubmit}>
-            {/* Остальной код формы без изменений */}
             <div className="space-y-4">
               {type === 'signup' && (
                 <>
@@ -334,6 +379,31 @@ export function AuthForm({ type, redirectPath = '/' }: AuthFormProps) {
                     </label>
                   </div>
                 </>
+              )}
+              
+              {type === 'signup' && (
+                <div className="space-y-2">
+                  <Label htmlFor="referralCode">{t('referral.enterCode')}</Label>
+                  <Input
+                    id="referralCode"
+                    name="referralCode"
+                    type="text"
+                    placeholder={t('referral.enterCodePlaceholder')}
+                    value={formData.referralCode}
+                    onChange={(e) => {
+                      const newValue = e.target.value;
+                      console.log('Referral code input changed:', newValue);
+                      setFormData(prev => ({
+                        ...prev,
+                        referralCode: newValue
+                      }));
+                    }}
+                    disabled={isLoading}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {t('referral.codeOptional')}
+                  </p>
+                </div>
               )}
               
               <Button type="submit" className="w-full" disabled={isLoading}>

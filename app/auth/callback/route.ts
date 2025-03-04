@@ -19,7 +19,13 @@ export async function GET(request: NextRequest) {
   const refId = requestUrl.searchParams.get('ref_id');
   if (refId) {
     console.log("Got referral ID from URL:", refId);
+  } else {
+    console.log("No referral ID found in URL params");
   }
+  
+  // Log the full URL and all search params for debugging
+  console.log("Full callback URL:", requestUrl.toString());
+  console.log("All URL search params:", Object.fromEntries(requestUrl.searchParams.entries()));
   
   // Log any errors from Supabase
   if (error || errorCode || errorDesc) {
@@ -43,21 +49,48 @@ export async function GET(request: NextRequest) {
       
       if (data.user) {
         console.log("User authenticated:", data.user.id);
+        console.log("User metadata:", data.user.user_metadata);
         
-        // Create the user profile
+        // Обработка реферального кода
+        const referredBy = data.user.user_metadata?.referred_by;
+        
+        if (referredBy) {
+          console.log("User referred by:", referredBy);
+        }
+        
+        // Создаем профиль пользователя
         try {
+          // Если в метаданных есть referred_by, передаем его в createUserProfile
           const result = await createUserProfile(data.user.id, {
             email: data.user.email as string,
             username: data.user.user_metadata?.username,
             full_name: data.user.user_metadata?.full_name,
             language: data.user.user_metadata?.language,
-            referred_by: refId || data.user.user_metadata?.referred_by, // Use URL param if available
+            referred_by: refId || referredBy // Используем URL параметр или метаданные
           });
           
           if (result.error) {
             console.error("Error creating user profile:", result.error);
           } else {
             console.log("User profile created successfully");
+            
+            // Если указан реферер, обновляем поле referred_by в базе данных
+            if (referredBy || refId) {
+              try {
+                const { error: updateError } = await supabase
+                  .from('users')
+                  .update({ referred_by: refId || referredBy })
+                  .eq('id', data.user.id);
+                
+                if (updateError) {
+                  console.error("Error updating referred_by:", updateError);
+                } else {
+                  console.log("Successfully updated referred_by field");
+                }
+              } catch (refError) {
+                console.error("Exception updating referred_by:", refError);
+              }
+            }
           }
         } catch (profileError) {
           console.error("Exception in createUserProfile:", profileError);
