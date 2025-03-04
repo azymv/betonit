@@ -3,6 +3,7 @@
 import { createServerActionClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { Database } from '@/lib/types/supabase';
+import { processFirstBet } from './referral-actions';
 
 interface PlaceBetParams {
   eventId: string;
@@ -10,6 +11,13 @@ interface PlaceBetParams {
   amount: number;
   prediction: boolean;
 }
+
+// Импортируем события из нашего существующего файла
+
+// Функцию trackMixpanelEvent мы не будем использовать, так как 
+// у нас уже есть интеграция с Mixpanel через lib/analytics/mixpanel.ts
+// На стороне сервера мы будем отслеживать события через API route
+// или отложенно в клиентской части
 
 export async function placeBet(params: PlaceBetParams) {
   try {
@@ -132,8 +140,46 @@ export async function placeBet(params: PlaceBetParams) {
       console.error('Error creating transaction:', transactionError);
       // Не отменяем операцию, так как основная функциональность выполнена
     }
+
+    // 4. НОВОЕ: Проверка на первую ставку и обработка реферальной логики
+    const referralResult = await processFirstBet(userId, newBet.id);
     
-    return { success: true, betId: newBet.id };
+    if (referralResult.error) {
+      console.error('Error processing referral reward:', referralResult.error);
+      // Ошибка не критичная, продолжаем
+    }
+    
+    // 5. События для аналитики будут отслеживаться в клиентской части
+    // после возврата результата размещения ставки
+    // Это лучше всего делать с использованием вашей существующей системы
+    
+    // Подготовим информацию для аналитики в ответе
+    const analyticsData = {
+      eventId,
+      betId: newBet.id,
+      amount,
+      prediction: prediction ? 'yes' : 'no',
+      isFirstBet: referralResult.isFirstBet || false,
+      rewardProcessed: referralResult.rewardProcessed || false
+    };
+    
+    // Если это первая ставка с реферальной наградой, включаем дополнительную информацию
+    if (referralResult.isFirstBet && referralResult.rewardProcessed) {
+      Object.assign(analyticsData, {
+        referrerId: referralResult.referrerId,
+        referrerAmount: referralResult.referrerAmount,
+        referredAmount: referralResult.referredAmount,
+        referrerUsername: referralResult.referrerUsername,
+        userUsername: referralResult.userUsername
+      });
+    }
+    
+    return { 
+      success: true, 
+      betId: newBet.id,
+      isFirstBet: referralResult.isFirstBet || false,
+      rewardProcessed: referralResult.rewardProcessed || false 
+    };
   } catch (err) {
     console.error('Error in placeBet:', err);
     return { error: 'Произошла ошибка при размещении ставки' };

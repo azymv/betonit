@@ -1,97 +1,110 @@
 'use server';
 
-import { createServerActionClient } from '@supabase/auth-helpers-nextjs';
-import { createClient } from '@supabase/supabase-js';
+import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
-import { Database } from '@/lib/types/supabase';
+import { generateReferralCode } from '@/lib/utils/referral-utils';
 
-export async function createUserProfile(userId: string, userData: {
+interface UserProfileData {
   email: string;
   username?: string;
   full_name?: string;
   language?: string;
-}) {
-  console.log("Starting createUserProfile for user:", userId);
+  referred_by?: string; // ID пользователя, пригласившего текущего
+}
+
+/**
+ * Создает профиль пользователя после аутентификации
+ * 
+ * @param userId ID пользователя из Supabase Auth
+ * @param userData Данные пользователя для создания профиля
+ */
+export async function createUserProfile(userId: string, userData: UserProfileData) {
+  console.log("Creating user profile for:", userId);
   
   try {
-    // First try regular client
-    const supabase = createServerActionClient<Database>({ cookies });
+    const supabase = createServerComponentClient({ cookies });
     
-    // Check if user already exists (to avoid duplicate entries)
-    const { data: existingUser, error: checkError } = await supabase
+    // Проверяем, существует ли уже профиль
+    const { data: existingUser } = await supabase
       .from('users')
       .select('id')
       .eq('id', userId)
       .single();
     
-    if (checkError && checkError.code !== 'PGRST116') {
-      console.error('Error checking if user exists:', checkError);
-    }
-    
     if (existingUser) {
-      console.log('User profile already exists, skipping creation');
+      console.log("User profile already exists, skipping creation");
       return { error: null };
     }
     
-    console.log('User does not exist yet, creating profile');
+    // Генерируем уникальный реферальный код
+    const referralCode = generateReferralCode(userId);
     
-    // Use admin client if available, otherwise use regular client
-    let client = supabase;
+    // Извлекаем данные пользователя из параметров
+    const { email, username, full_name, language, referred_by } = userData;
     
-    if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      console.log("Using service role client");
-      try {
-        client = createClient(
-          process.env.SUPABASE_URL,
-          process.env.SUPABASE_SERVICE_ROLE_KEY
-        );
-      } catch (e) {
-        console.error("Error creating service role client:", e);
-      }
-    } else {
-      console.log("Service role key not available, using regular client");
-    }
+    console.log("Creating new user profile with data:", {
+      email,
+      username: username || null, 
+      full_name: full_name || null,
+      language: language || 'en',
+      referral_code: referralCode,
+      referred_by: referred_by || null
+    });
     
-    // Generate a referral code
-    const referralCode = Math.random().toString(36).substring(2, 10).toUpperCase();
-    
-    // Create user record in the users table
-    const { error: profileError } = await client
+    // Создаем запись пользователя в базе данных
+    const { error: userError } = await supabase
       .from('users')
       .insert({
         id: userId,
-        email: userData.email,
-        username: userData.username,
-        full_name: userData.full_name,
-        language: userData.language || 'en',
+        email,
+        username: username || null,
+        full_name: full_name || null,
+        language: language || 'en',
         referral_code: referralCode,
+        referred_by: referred_by || null
       });
     
-    if (profileError) {
-      console.error('Error creating user profile:', profileError);
-      return { error: profileError };
+    if (userError) {
+      console.error("Error creating user:", userError);
+      return { error: userError };
     }
     
-    console.log("User profile created, creating initial balance");
-    
-    // Create an initial balance for the user
-    const { error: balanceError } = await client
+    // Создаем начальный баланс для пользователя (1000 монет)
+    const { error: balanceError } = await supabase
       .from('balances')
       .insert({
         user_id: userId,
-        amount: 1000, // Initial balance of 1000 coins
-        currency: 'coins',
+        amount: 1000, // Начальный баланс
+        currency: 'coins'
       });
     
     if (balanceError) {
-      console.error('Error creating initial balance:', balanceError);
+      console.error("Error creating initial balance:", balanceError);
       return { error: balanceError };
     }
     
-    console.log("User setup completed successfully");
+    // Если есть пригласивший, создаем запись в таблице referral_rewards
+    // Награда будет начислена позже, после первой ставки
+    if (referred_by) {
+      const { error: referralError } = await supabase
+        .from('referral_rewards')
+        .insert({
+          referrer_id: referred_by,
+          referred_id: userId,
+          status: 'pending' // Статус "ожидающий" - награда будет начислена после первой ставки
+        });
+      
+      if (referralError) {
+        console.error("Error creating referral reward record:", referralError);
+        // Не возвращаем ошибку, так как основной профиль уже создан
+      }
+    }
+    
+    console.log("User profile created successfully");
     return { error: null };
+    
   } catch (error) {
-    console.error('Exception in createUserProfile:', error);
-    return { error: error as Error };
+    console.error("Exception creating user profile:", error);
+    return { error };
   }
 }

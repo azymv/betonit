@@ -1,0 +1,81 @@
+# Authentication, Registration, and Profile Creation Flow
+
+## Overview
+The application uses Supabase for authentication and user management. It implements a complete authentication flow including sign-up, sign-in, email verification, and profile creation. The application supports internationalization (i18n) with localized routes.
+
+## Registration (Sign Up) Flow
+1. **User Registration**:
+   - User navigates to `/{locale}/auth/signup`
+   - User enters email, password, and optional profile information (username, full name)
+   - The `signUp` function in `auth-context.tsx` is called
+   - Supabase's `auth.signUp` method is used with the PKCE flow
+   - Email verification is enabled with a redirect URL to `/auth/callback`
+   - User metadata (username, full_name, language, referred_by) is stored during sign-up
+
+2. **Email Verification**:
+   - Supabase sends a verification email to the user
+   - The email contains a link with an authentication code
+   - When clicked, the link redirects to `/auth/callback` with the code as a query parameter
+
+3. **Auth Callback Processing**:
+   - The `/auth/callback` route handler (`app/auth/callback/route.ts`) processes the verification
+   - It exchanges the code for a session using `supabase.auth.exchangeCodeForSession`
+   - If successful, it creates a user profile by calling `createUserProfile` from `auth-actions.ts`
+   - After processing, it redirects to `/{defaultLocale}/auth/success`
+
+4. **Profile Creation**:
+   - The `createUserProfile` function in `auth-actions.ts` creates a user record in the database
+   - It checks if the user already exists to avoid duplicates
+   - It generates a unique referral code for the user
+   - It creates an initial balance of 1000 coins for the user
+   - The user profile includes: id, email, username, full_name, language, and referral_code
+
+## Authentication (Sign In) Flow
+1. **User Login**:
+   - User navigates to `/{locale}/auth/signin`
+   - User enters email and password
+   - The `signIn` function in `auth-context.tsx` is called
+   - Supabase's `auth.signInWithPassword` method is used
+   - Upon successful authentication, the user is redirected to their profile page
+
+2. **Session Management**:
+   - The `AuthProvider` in `auth-context.tsx` manages the authentication state
+   - It initializes by checking for an existing session using `supabase.auth.getSession`
+   - It subscribes to auth state changes using `supabase.auth.onAuthStateChange`
+   - The auth state (user, session) is provided through React Context
+
+3. **Sign Out**:
+   - The `signOut` function in `auth-context.tsx` handles user logout
+   - It calls Supabase's `auth.signOut` method
+   - It clears the local user and session state
+
+## Middleware and Routing
+1. **Localization Middleware**:
+   - The `middleware.ts` file handles route localization
+   - It checks if the current path includes a locale prefix
+   - If not, it redirects to the same path with the default locale
+   - It skips processing for the `/auth/callback` route to prevent redirect loops
+   - It also skips static files and API routes
+
+2. **Protected Routes**:
+   - Profile and other protected pages check for authentication status
+   - They use the `useAuth` hook to access the current user and session
+   - If no user is found, they redirect to the sign-in page
+
+## Profile Management
+1. **Profile Page**:
+   - Located at `/{locale}/profile`
+   - Displays user information (email, username)
+   - Shows betting statistics and history
+   - Requires authentication to access
+
+2. **Profile Data**:
+   - User profile data is stored in the Supabase `users` table
+   - Basic auth data (email, password) is managed by Supabase Auth
+   - Additional profile data is stored in user metadata and the `users` table
+   - User balance is stored in the `balances` table
+
+## Error Handling
+- Authentication errors redirect to `/{locale}/auth/error`
+- The application includes comprehensive error logging
+- Errors during profile creation are logged but don't block the authentication flow 

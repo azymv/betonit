@@ -1,259 +1,306 @@
-// lib/actions/referral-actions.ts
 'use server';
 
+import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
-import { createServerActionClient } from '@supabase/auth-helpers-nextjs';
-import { Database } from '@/lib/types/supabase';
+import { generateReferralLink } from '@/lib/utils/referral-utils';
 
-// Генерация уникального реферального кода
-export async function generateReferralCode() {
-  const supabase = createServerActionClient<Database>({ cookies });
-  
-  // Получаем текущего пользователя
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) {
-    return { success: false, message: 'User not authenticated' };
-  }
-  
-  // Проверяем, есть ли уже реферальный код
-  const { data: userData, error: userError } = await supabase
-    .from('users')
-    .select('username, referral_code')
-    .eq('id', session.user.id)
-    .single();
-    
-  if (userError) {
-    console.error('Error getting user data for referral code:', userError);
-    return { success: false, message: userError.message };
-  }
-  
-  // Если код уже есть, возвращаем его
-  if (userData.referral_code) {
-    return { success: true, code: userData.referral_code };
-  }
-  
-  // Создаем новый код
-  const username = userData.username || session.user.email?.split('@')[0] || '';
-  const prefix = username.substring(0, 3).toUpperCase();
-  const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
-  const referralCode = `${prefix}${randomPart}`;
-  
-  // Сохраняем код в базе данных
-  const { error: updateError } = await supabase
-    .from('users')
-    .update({ referral_code: referralCode })
-    .eq('id', session.user.id);
-    
-  if (updateError) {
-    console.error('Error saving referral code:', updateError);
-    return { success: false, message: updateError.message };
-  }
-  
-  return { success: true, code: referralCode };
-}
+// Константы для реферальной программы
+const REFERRER_REWARD = 100;  // Награда для пригласившего
+const REFERRED_REWARD = 50;   // Награда для приглашенного
 
-// Обработка реферальной награды
-export async function processReferralReward(referrerId: string, newUserId: string) {
-  console.log(`Processing referral reward: referrer=${referrerId}, newUser=${newUserId}`);
-  
-  const supabase = createServerActionClient<Database>({ cookies });
-  
+/**
+ * Получает информацию о рефералах пользователя
+ * 
+ * @param userId ID пользователя
+ * @returns Объект с реферальной ссылкой и статистикой
+ */
+export async function getUserReferralInfo(userId: string) {
   try {
-    // Проверяем, существует ли уже запись о реферальном вознаграждении
-    const { data: existingReward, error: checkError } = await supabase
+    const supabase = createServerComponentClient({ cookies });
+    
+    // Получаем реферальный код пользователя
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('referral_code')
+      .eq('id', userId)
+      .single();
+    
+    if (userError || !userData?.referral_code) {
+      console.error("Error fetching user referral code:", userError);
+      return { error: userError || new Error('Referral code not found') };
+    }
+    
+    // Генерируем полную реферальную ссылку
+    const referralLink = generateReferralLink(userData.referral_code);
+    
+    // Получаем количество приглашенных пользователей
+    const { data: referralsData, error: referralsError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('referred_by', userId);
+    
+    if (referralsError) {
+      console.error("Error fetching referrals count:", referralsError);
+      return { error: referralsError };
+    }
+    
+    // Получаем количество активных рефералов (сделавших ставку)
+    const { data: activeReferralsData, error: activeError } = await supabase
       .from('referral_rewards')
       .select('id')
-      .eq('referrer_id', referrerId)
-      .eq('referred_id', newUserId)
-      .single();
-    
-    if (!checkError && existingReward) {
-      console.log('Referral reward already processed, skipping');
-      return { success: true };
-    }
-    
-    // 1. Создаем запись в таблице referral_rewards
-    const { error: rewardError } = await supabase
-      .from('referral_rewards')
-      .insert({
-        referrer_id: referrerId,
-        referred_id: newUserId,
-        referrer_amount: 100, // Реферер получает 100 монет
-        referred_amount: 50,  // Новый пользователь получает 50 монет
-        status: 'completed'
-      });
-      
-    if (rewardError) {
-      console.error("Error creating referral reward:", rewardError);
-      throw rewardError;
-    }
-    
-    // 2. Обновляем баланс реферера
-    const { data: referrerBalance, error: referrerBalanceError } = await supabase
-      .from('balances')
-      .select('amount')
-      .eq('user_id', referrerId)
-      .eq('currency', 'coins')
-      .single();
-      
-    if (referrerBalanceError && referrerBalanceError.code !== 'PGRST116') {
-      console.error("Error getting referrer balance:", referrerBalanceError);
-      throw referrerBalanceError;
-    }
-    
-    // Если баланс не существует, создаем его
-    const referrerAmount = (referrerBalance?.amount || 0) + 100;
-    
-    const { error: updateReferrerError } = await supabase
-      .from('balances')
-      .upsert({
-        user_id: referrerId,
-        amount: referrerAmount,
-        currency: 'coins',
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'user_id, currency' });
-      
-    if (updateReferrerError) {
-      console.error("Error updating referrer balance:", updateReferrerError);
-      throw updateReferrerError;
-    }
-    
-    // 3. Обновляем баланс нового пользователя
-    const { data: newUserBalance, error: newUserBalanceError } = await supabase
-      .from('balances')
-      .select('amount')
-      .eq('user_id', newUserId)
-      .eq('currency', 'coins')
-      .single();
-      
-    if (newUserBalanceError && newUserBalanceError.code !== 'PGRST116') {
-      console.error("Error getting new user balance:", newUserBalanceError);
-      throw newUserBalanceError;
-    }
-    
-    const newUserAmount = (newUserBalance?.amount || 1000) + 50;
-    
-    const { error: updateNewUserError } = await supabase
-      .from('balances')
-      .upsert({
-        user_id: newUserId,
-        amount: newUserAmount,
-        currency: 'coins',
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'user_id, currency' });
-      
-    if (updateNewUserError) {
-      console.error("Error updating new user balance:", updateNewUserError);
-      throw updateNewUserError;
-    }
-    
-    // 4. Создаем транзакции для обоих пользователей
-    try {
-      // Для реферера
-      const { error: referrerTxError } = await supabase
-        .from('transactions')
-        .insert({
-          user_id: referrerId,
-          amount: 100,
-          currency: 'coins',
-          type: 'referral_reward',
-          status: 'completed',
-          metadata: { referred_user_id: newUserId }
-        });
-        
-      if (referrerTxError) {
-        console.error("Error creating referrer transaction:", referrerTxError);
-        // Продолжаем выполнение, так как балансы уже обновлены
-      }
-    } catch (error) {
-      console.error("Exception creating referrer transaction:", error);
-      // Не прерываем выполнение, так как основная часть операции завершена
-    }
-    
-    try {
-      // Для нового пользователя
-      const { error: newUserTxError } = await supabase
-        .from('transactions')
-        .insert({
-          user_id: newUserId,
-          amount: 50,
-          currency: 'coins',
-          type: 'referral_reward',
-          status: 'completed',
-          metadata: { referrer_id: referrerId }
-        });
-        
-      if (newUserTxError) {
-        console.error("Error creating new user transaction:", newUserTxError);
-        // Продолжаем выполнение, так как балансы уже обновлены
-      }
-    } catch (error) {
-      console.error("Exception creating new user transaction:", error);
-      // Не прерываем выполнение, так как основная часть операции завершена
-    }
-    
-    console.log("Successfully processed referral reward");
-    return { success: true };
-  } catch (error) {
-    console.error("Error in processReferralReward:", error);
-    // Возвращаем информацию об ошибке, но не прерываем всю операцию
-    return { success: false, error: (error as Error).message };
-  }
-}
-
-// Получение статистики рефералов
-export async function getReferralStats() {
-  const supabase = createServerActionClient<Database>({ cookies });
-  
-  try {
-    // Получаем текущего пользователя
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      return { success: false, message: 'User not authenticated' };
-    }
-    
-    // Получаем количество успешных рефералов
-    const { count, error: countError } = await supabase
-      .from('referral_rewards')
-      .select('*', { count: 'exact', head: true })
-      .eq('referrer_id', session.user.id)
+      .eq('referrer_id', userId)
       .eq('status', 'completed');
-      
-    if (countError) {
-      console.error("Error getting referral count:", countError);
-      return { success: false, message: countError.message };
+    
+    if (activeError) {
+      console.error("Error fetching active referrals:", activeError);
+      return { error: activeError };
     }
     
     // Получаем сумму заработанных монет
-    const { data: rewardsData, error: rewardsError } = await supabase
+    const { data: earningsData, error: earningsError } = await supabase
       .from('referral_rewards')
       .select('referrer_amount')
-      .eq('referrer_id', session.user.id)
+      .eq('referrer_id', userId)
       .eq('status', 'completed');
-      
-    if (rewardsError) {
-      console.error("Error getting referral rewards data:", rewardsError);
-      return { success: false, message: rewardsError.message };
+    
+    if (earningsError) {
+      console.error("Error fetching referral earnings:", earningsError);
+      return { error: earningsError };
     }
     
-    const totalEarned = rewardsData.reduce((sum, item) => sum + (item.referrer_amount || 0), 0);
+    // Рассчитываем сумму заработанных монет
+    const totalEarned = earningsData.reduce((sum, item) => sum + item.referrer_amount, 0);
     
-    return { 
-      success: true, 
-      stats: {
-        totalReferrals: count || 0,
-        totalEarned
-      }
+    return {
+      referralLink,
+      referralCode: userData.referral_code,
+      totalReferrals: referralsData.length || 0,
+      activeReferrals: activeReferralsData.length || 0,
+      totalEarned,
+      error: null
     };
+    
   } catch (error) {
-    console.error("Exception in getReferralStats:", error);
-    return { 
-      success: false, 
-      message: (error as Error).message,
-      stats: {
-        totalReferrals: 0,
-        totalEarned: 0
-      }
-    };
+    console.error("Exception in getUserReferralInfo:", error);
+    return { error };
   }
 }
+
+/**
+ * Проверяет, является ли ставка первой для пользователя, и при необходимости
+ * начисляет реферальные бонусы
+ * 
+ * @param userId ID пользователя, сделавшего ставку
+ * @param betId ID ставки
+ */
+export async function processFirstBet(userId: string, betId: string) {
+  try {
+    const supabase = createServerComponentClient({ cookies });
+    
+    // Проверяем, первая ли это ставка
+    const { data: previousBets, error: betsError } = await supabase
+      .from('bets')
+      .select('id')
+      .eq('user_id', userId)
+      .neq('id', betId) // Исключаем текущую ставку
+      .limit(1);
+    
+    if (betsError) {
+      console.error("Error checking previous bets:", betsError);
+      return { error: betsError };
+    }
+    
+    // Если есть предыдущие ставки, это не первая ставка
+    if (previousBets && previousBets.length > 0) {
+      return { isFirstBet: false, error: null };
+    }
+    
+    // Получаем данные пользователя для аналитики
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('username, email')
+      .eq('id', userId)
+      .single();
+      
+    if (userError) {
+      console.error("Error fetching user data:", userError);
+    }
+    
+    // Отправляем событие первой ставки в аналитику
+    // Это происходит в серверном действии, поэтому нужно использовать fetch напрямую
+    // В реальном приложении нужно создать соответствующий API endpoint
+    
+    // Проверяем, есть ли ожидающие реферальные вознаграждения
+    const { data: pendingRewards, error: rewardsError } = await supabase
+      .from('referral_rewards')
+      .select('id, referrer_id')
+      .eq('referred_id', userId)
+      .eq('status', 'pending')
+      .limit(1);
+    
+    if (rewardsError) {
+      console.error("Error checking pending rewards:", rewardsError);
+      return { error: rewardsError };
+    }
+    
+    // Если нет ожидающих вознаграждений, выходим
+    if (!pendingRewards || pendingRewards.length === 0) {
+      return { isFirstBet: true, rewardProcessed: false, error: null };
+    }
+    
+    // Получаем ID реферера
+    const referrerId = pendingRewards[0].referrer_id;
+    const rewardId = pendingRewards[0].id;
+    
+    // Получаем данные реферера для аналитики
+    const { data: referrerData, error: referrerUserError } = await supabase
+      .from('users')
+      .select('username, email')
+      .eq('id', referrerId)
+      .single();
+      
+    if (referrerUserError) {
+      console.error("Error fetching referrer data:", referrerUserError);
+    }
+    
+    // Начисляем вознаграждение пригласившему
+    const { error: referrerError } = await supabase.rpc('add_coins', {
+      p_user_id: referrerId,
+      p_amount: REFERRER_REWARD,
+      p_description: `Referral reward for inviting a user who made their first bet`
+    });
+    
+    if (referrerError) {
+      console.error("Error crediting referrer:", referrerError);
+      return { error: referrerError };
+    }
+    
+    // Начисляем вознаграждение приглашенному
+    const { error: referredError } = await supabase.rpc('add_coins', {
+      p_user_id: userId,
+      p_amount: REFERRED_REWARD,
+      p_description: `Welcome bonus for making your first bet`
+    });
+    
+    if (referredError) {
+      console.error("Error crediting referred user:", referredError);
+      return { error: referredError };
+    }
+    
+    // Обновляем статус вознаграждения
+    const { error: updateError } = await supabase
+      .from('referral_rewards')
+      .update({ 
+        status: 'completed',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', rewardId);
+    
+    if (updateError) {
+      console.error("Error updating reward status:", updateError);
+      return { error: updateError };
+    }
+    
+    return { 
+      isFirstBet: true, 
+      rewardProcessed: true, 
+      referrerId,
+      referrerAmount: REFERRER_REWARD,
+      referredAmount: REFERRED_REWARD,
+      referrerUsername: referrerData?.username,
+      userUsername: userData?.username,
+      error: null 
+    };
+    
+  } catch (error) {
+    console.error("Exception in processFirstBet:", error);
+    return { error };
+  }
+}
+
+/**
+ * Получает список приглашенных пользователей
+ * 
+ * @param userId ID пользователя
+ * @returns Список приглашенных пользователей с их статусом
+ */
+export async function getUserReferrals(userId: string) {
+  try {
+    const supabase = createServerComponentClient({ cookies });
+    
+    // Получаем список приглашенных пользователей с их статусом
+    const { data, error } = await supabase
+      .from('users')
+      .select(`
+        id,
+        username,
+        full_name,
+        created_at,
+        referral_rewards!inner (
+          status,
+          referrer_amount,
+          created_at,
+          updated_at
+        )
+      `)
+      .eq('referred_by', userId)
+      .eq('referral_rewards.referrer_id', userId);
+    
+    if (error) {
+      console.error("Error fetching user referrals:", error);
+      return { error };
+    }
+    
+    return { referrals: data || [], error: null };
+    
+  } catch (error) {
+    console.error("Exception in getUserReferrals:", error);
+    return { error };
+  }
+}
+
+/**
+ * SQL функции, которые нужно создать в Supabase:
+ * 
+ * CREATE OR REPLACE FUNCTION add_coins(
+ *   p_user_id UUID,
+ *   p_amount NUMERIC,
+ *   p_description TEXT
+ * ) RETURNS VOID AS $$
+ * DECLARE
+ *   v_balance_id UUID;
+ * BEGIN
+ *   -- Получаем ID записи баланса
+ *   SELECT id INTO v_balance_id
+ *   FROM balances
+ *   WHERE user_id = p_user_id AND currency = 'coins';
+ *   
+ *   -- Если записи нет, создаем
+ *   IF v_balance_id IS NULL THEN
+ *     INSERT INTO balances (user_id, amount, currency)
+ *     VALUES (p_user_id, p_amount, 'coins')
+ *     RETURNING id INTO v_balance_id;
+ *   ELSE
+ *     -- Обновляем существующий баланс
+ *     UPDATE balances
+ *     SET amount = amount + p_amount, updated_at = NOW()
+ *     WHERE id = v_balance_id;
+ *   END IF;
+ *   
+ *   -- Создаем запись в транзакциях
+ *   INSERT INTO transactions (
+ *     user_id,
+ *     amount,
+ *     currency,
+ *     type,
+ *     description
+ *   ) VALUES (
+ *     p_user_id,
+ *     p_amount,
+ *     'coins',
+ *     'referral',
+ *     p_description
+ *   );
+ * END;
+ * $$ LANGUAGE plpgsql;
+ */

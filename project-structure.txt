@@ -84,4 +84,43 @@
   - `types/` - TypeScript types
   - `utils/` - Utility functions
   - `i18n-config.ts` - Internationalization configuration
-  - `utils.ts` - General utilities 
+  - `utils.ts` - General utilities
+
+## App Directory
+- `app/api/` - API routes
+- `app/auth/` - Authentication routes
+  - `app/auth/callback/` - Supabase auth callback handler
+- `app/[locale]/` - Localized routes
+  - `app/[locale]/auth/` - Localized auth pages
+    - `signin/` - Sign in page
+    - `signup/` - Sign up page
+    - `verify-email/` - Email verification page
+    - `verified/` - Email verified confirmation page
+    - `success/` - Authentication success page
+    - `error/` - Authentication error page
+    - `reset-password/` - Password reset page
+    - `verify/` - Verification page
+  - `app/[locale]/profile/` - User profile pages
+  - `app/[locale]/events/` - Event pages
+  - `app/[locale]/admin/` - Admin pages
+  - `app/[locale]/leaderboard/` - Leaderboard pages
+  - `app/[locale]/referral/` - Referral program pages
+- `app/globals.css` - Global CSS styles
+- `app/layout.tsx` - Root layout component
+- `app/page.tsx` - Root page component
+
+## Lib Directory
+- `lib/actions/` - Server actions
+  - `auth-actions.ts` - Authentication-related server actions
+  - `bet-actions.ts` - Betting-related server actions
+  - `referral-actions.ts` - Referral-related server actions
+  - `seed-events.ts` - Event seeding actions
+- `lib/context/` - React context providers
+  - `auth-context.tsx` - Authentication context provider
+- `lib/types/` - TypeScript type definitions
+- `lib/analytics/` - Analytics utilities
+- `lib/db/` - Database utilities
+- `lib/referrals/` - Referral system utilities
+- `lib/hooks/` - Custom React hooks
+- `lib/utils/` - Utility functions
+- `lib/i18n-config.ts` - Internationalization configuration 

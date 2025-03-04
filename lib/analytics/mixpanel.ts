@@ -50,4 +50,11 @@ export const ANALYTICS_EVENTS = {
   CHANGE_LANGUAGE: 'Change Language',
   USE_REFERRAL: 'Use Referral Code',
   CREATE_REFERRAL: 'Create Referral',
+  
+  // Referral program specific events
+  REFERRAL_LINK_COPIED: 'Referral Link Copied',
+  REFERRAL_SIGNUP_COMPLETED: 'Referral Signup Completed',
+  FIRST_BET_PLACED: 'First Bet Placed',
+  REFERRAL_REWARD_EARNED: 'Referral Reward Earned',
+  REFERRAL_BONUS_RECEIVED: 'Referral Bonus Received',
 };

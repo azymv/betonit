@@ -18,6 +18,7 @@ import { Loader2 } from 'lucide-react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Database } from '@/lib/types/supabase';
 import { AlertCircle } from 'lucide-react';
+import { ReferralBadge } from '@/components/referral/ReferralBadge';
 
 interface AuthFormProps {
   type: 'signin' | 'signup';
@@ -37,6 +38,7 @@ export function AuthForm({ type, redirectPath = '/' }: AuthFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [referrerId, setReferrerId] = useState<string | null>(null);
+  const [referrerUsername, setReferrerUsername] = useState<string | undefined>(undefined);
   const [showResendButton, setShowResendButton] = useState(false);
   const [resendingEmail, setResendingEmail] = useState(false);
   const supabase = createClientComponentClient<Database>({
@@ -68,12 +70,16 @@ export function AuthForm({ type, redirectPath = '/' }: AuthFormProps) {
         try {
           const { data, error } = await supabase
             .from('users')
-            .select('id')
+            .select('id, username')  // Добавляем username к запросу
             .eq('referral_code', referralCode)
             .single();
             
           if (!error && data) {
             setReferrerId(data.id);
+            // Проверяем, что username существует, прежде чем устанавливать его
+            if (data.username) {
+              setReferrerUsername(data.username);
+            }
             // Сохраняем ID реферера в sessionStorage
             sessionStorage.setItem('referrerId', data.id);
           }
@@ -179,11 +185,7 @@ export function AuthForm({ type, redirectPath = '/' }: AuthFormProps) {
       </CardHeader>
       <CardContent>
         {referrerId && type === 'signup' && (
-          <Alert className="mb-4 bg-green-50 text-green-800 border-green-200">
-            <AlertDescription>
-              {t('auth.signup.referralApplied')}
-            </AlertDescription>
-          </Alert>
+          <ReferralBadge locale={locale} referrerUsername={referrerUsername} />
         )}
         
         {error && (
