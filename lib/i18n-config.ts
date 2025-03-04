@@ -179,6 +179,7 @@ export function getTranslation(locale: string, key: string): string {
 'profile.referral.generating': 'Generating...',
 'profile.referral.invited': 'Invited',
 'profile.referral.earned': 'Coins Earned',
+'profile.potentialWin': 'Potential Payout',
       
       // Footer
       'footer.tagline': 'Predict and earn',
@@ -366,6 +367,7 @@ export function getTranslation(locale: string, key: string): string {
 'profile.referral.generating': 'Генерация...',
 'profile.referral.invited': 'Приглашено',
 'profile.referral.earned': 'Заработано монет',
+'profile.potentialWin': 'Потенциальная выплата',
       
       // Footer
       'footer.tagline': 'Предсказывай и зарабатывай',

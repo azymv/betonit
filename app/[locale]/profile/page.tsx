@@ -48,7 +48,6 @@ export default function ProfilePage() {
   const [betStats, setBetStats] = useState<BetStatistics>({ total: 0, won: 0, lost: 0, winRate: 0 });
   const [referralCode, setReferralCode] = useState('');
   const [isCopied, setIsCopied] = useState(false);
-  const [isGeneratingCode, setIsGeneratingCode] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<{ message: string; details?: string } | null>(null);
   const [referralLink, setReferralLink] = useState<string>('');
@@ -93,23 +92,6 @@ export default function ProfilePage() {
   };
   
   // Функция для генерации реферального кода
-  const handleGenerateCode = async () => {
-    if (isGeneratingCode) return;
-    
-    setIsGeneratingCode(true);
-    try {
-      // Здесь должен быть вызов функции generateReferralCode
-      console.log('Generate referral code');
-      
-      // Загружаем данные заново вместо перезагрузки страницы
-      loadProfileData();
-    } catch (err) {
-      console.error('Failed to generate referral code:', err);
-      setError((err as Error).message ? { message: (err as Error).message } : null);
-    } finally {
-      setIsGeneratingCode(false);
-    }
-  };
   
   // Вычисление статистики ставок
   const calculateBetStats = (bets: BetWithEvent[]): BetStatistics => {
@@ -154,8 +136,6 @@ export default function ProfilePage() {
       }
       
       console.log("Loading profile data for user:", user.id);
-      
-      // Добавляем вывод всех параметров запроса перед выполнением
       console.log("Supabase query params for profile:", { user_id: user.id });
       
       // Загружаем данные пользователя и баланс параллельно
@@ -179,7 +159,7 @@ export default function ProfilePage() {
         supabase
           .from('bets')
           .select(`
-            id, amount, potential_win, created_at, status, user_id, event_id,
+            id, amount, potential_payout, created_at, status, user_id, event_id, prediction,
             events (title, status, result)
           `)
           .eq('user_id', user.id)
@@ -192,60 +172,17 @@ export default function ProfilePage() {
         
         if (userError) {
           console.error("Error loading user data:", userError);
-          // Подробный вывод ошибки
           console.error("User error details:", JSON.stringify(userError, null, 2));
-          
-          // Если пользователь не найден, пытаемся создать профиль
-          if (userError.code === 'PGRST116') {
-            console.log("User profile not found, creating profile");
-            
-            try {
-              // Импортируем функции из auth-actions
-              const authActions = await import('@/lib/actions/auth-actions');
-              
-              // Используем доступную функцию createUserProfile
-              const result = await authActions.createUserProfile(user.id, {
-                email: user.email || '',
-                username: user.user_metadata?.username,
-                full_name: user.user_metadata?.full_name,
-                language: localeStr || 'en',
-                referred_by: user.user_metadata?.referred_by,
-              });
-              
-              if (result.success) {
-                console.log("Profile created successfully, reloading data");
-                // Повторно загружаем данные после создания профиля
-                loadProfileData();
-                return;
-              } else {
-                console.error("Failed to create profile:", result.error);
-                setError({
-                  message: "Failed to create profile",
-                  details: result.error && typeof result.error === 'object' && 'message' in result.error 
-                    ? String(result.error.message) 
-                    : "Unknown error"
-                });
-              }
-            } catch (importError) {
-              console.error("Error importing or calling createUserProfile:", importError);
-              setError({
-                message: "Error creating profile",
-                details: importError instanceof Error ? importError.message : "Unknown error"
-              });
-            }
-          } else {
-            setError({
-              message: "Error loading user data",
-              details: userError.message
-            });
-          }
+          setError({
+            message: "Error loading user data",
+            details: userError.message
+          });
         } else if (userData) {
           console.log("User data loaded successfully:", userData);
           setReferralCode(userData.referral_code || '');
         }
       } else {
         console.error("Promise rejection in user data loading:", userResult.reason);
-        // Подробный вывод ошибки
         console.error("User promise rejection details:", JSON.stringify(userResult.reason, null, 2));
       }
       
@@ -255,23 +192,15 @@ export default function ProfilePage() {
         
         if (balanceError) {
           console.error("Error loading balance:", balanceError);
-          // Подробный вывод ошибки
           console.error("Balance error details:", JSON.stringify(balanceError, null, 2));
           // Не прерываем выполнение, чтобы показать хотя бы часть данных
         } else if (balanceData) {
-          console.log("Balance data loaded successfully:", balanceData);
+          console.log("Balance loaded successfully:", balanceData);
           setBalance(balanceData.amount || 0);
         }
       } else {
-        console.error("Promise rejection in balance loading:", balanceResult.reason);
-        // Подробный вывод ошибки
+        console.error("Failed to load balance:", balanceResult.reason);
         console.error("Balance promise rejection details:", JSON.stringify(balanceResult.reason, null, 2));
-        if (balanceResult.reason instanceof Error) {
-          setError({
-            message: "Failed to load balance",
-            details: balanceResult.reason.message
-          });
-        }
       }
       
       // Обрабатываем результат загрузки ставок
@@ -280,24 +209,20 @@ export default function ProfilePage() {
         
         if (betsError) {
           console.error("Error loading bets:", betsError);
-          // Подробный вывод ошибки
           console.error("Bets error details:", JSON.stringify(betsError, null, 2));
         } else if (betsData) {
-          console.log("Bets data loaded successfully, count:", betsData.length);
+          console.log("Bets loaded successfully, count:", betsData.length);
           // Приводим данные к нужному типу
           const typedBets = betsData as unknown as BetWithEvent[];
           setUserBets(typedBets);
           setBetStats(calculateBetStats(typedBets));
         }
       } else {
-        console.error("Promise rejection in bets loading:", betsResult.reason);
-        // Подробный вывод ошибки
+        console.error("Failed to load bets:", betsResult.reason);
         console.error("Bets promise rejection details:", JSON.stringify(betsResult.reason, null, 2));
       }
     } catch (err) {
       console.error("Error loading profile data:", err);
-      // Подробный вывод ошибки
-      console.error("Profile data error details:", JSON.stringify(err, null, 2));
       setError({
         message: "Error loading profile data",
         details: err instanceof Error ? err.message : "Unknown error"
@@ -408,6 +333,39 @@ export default function ProfilePage() {
     }
   };
   
+  // Функция для ручного создания профиля (как запасной вариант)
+  const handleManualProfileCreation = async () => {
+    if (!user) return;
+    
+    try {
+      const { createUserProfile } = await import('@/lib/actions/auth-actions');
+      const result = await createUserProfile(user.id, {
+        email: user.email || '',
+        username: user.user_metadata?.username,
+        full_name: user.user_metadata?.full_name,
+        language: localeStr
+      });
+      
+      if (result.success) {
+        console.log("Profile created manually successfully");
+        // Перезагружаем страницу для обновления данных
+        window.location.reload();
+      } else {
+        console.error("Failed to create profile manually:", result.error);
+        setError({
+          message: "Failed to create profile manually",
+          details: result.error instanceof Error ? result.error.message : String(result.error)
+        });
+      }
+    } catch (e) {
+      console.error("Exception creating profile manually:", e);
+      setError({
+        message: "Failed to create profile manually",
+        details: e instanceof Error ? e.message : String(e)
+      });
+    }
+  };
+  
   // Рендеринг компонента
   return (
     <div className="container py-8">
@@ -427,24 +385,40 @@ export default function ProfilePage() {
       {/* Показываем ошибку */}
       {error && !isLoading && !isAuthLoading && (
         <div className="flex flex-col items-center justify-center py-12">
-          <div className="mb-6">
+          <div className="mb-6 max-w-xl">
             <Alert variant="destructive" className="mb-4">
               <AlertCircle className="h-4 w-4 mr-2" />
               <AlertTitle>{t('profile.errorTitle')}</AlertTitle>
-              <AlertDescription>
-                {error.message}: {error.details}
+              <AlertDescription className="whitespace-pre-wrap break-words">
+                {error.message}
+                {error.details && (
+                  <>
+                    <br />
+                    <strong>Details:</strong> {error.details}
+                  </>
+                )}
               </AlertDescription>
             </Alert>
             
-            <Button 
-              onClick={() => {
-                setError(null);
-                loadProfileData();
-              }}
-              className="w-full"
-            >
-              {t('profile.retry')}
-            </Button>
+            <div className="flex space-x-4">
+              <Button 
+                onClick={() => {
+                  setError(null);
+                  loadProfileData();
+                }}
+                className="flex-1"
+              >
+                {t('profile.retry')}
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                onClick={() => router.push(`/${localeStr}`)}
+                className="flex-1"
+              >
+                {t('common.back')}
+              </Button>
+            </div>
           </div>
         </div>
       )}
@@ -500,6 +474,24 @@ export default function ProfilePage() {
               </CardContent>
             </Card>
             
+            {/* Дополнительная карточка для ручного создания профиля, если профиль не полностью создан */}
+            {!referralCode && (
+              <Card className="mt-6">
+                <CardHeader className="pb-3">
+                  <CardTitle>Действие требуется</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="mb-4">Похоже, ваш профиль не был создан полностью. Нажмите кнопку ниже, чтобы завершить регистрацию.</p>
+                  <Button 
+                    onClick={handleManualProfileCreation} 
+                    className="w-full"
+                  >
+                    Завершить регистрацию
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+            
             {/* Статистика ставок */}
             {betStats && (
               <Card className="mt-6">
@@ -542,21 +534,21 @@ export default function ProfilePage() {
             )}
             
             {/* Реферальная программа */}
-            <Card className="mt-6 relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-r from-pink-500/10 via-purple-500/10 to-indigo-500/10 bg-[size:400%_400%] animate-gradient" />
-              <div className="absolute inset-0 bg-gradient-to-r from-pink-500/10 via-purple-500/10 to-indigo-500/10 bg-[size:400%_400%] blur-xl animate-gradient" />
-              <CardHeader className="pb-3 relative">
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  {t('profile.referral.title')}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="relative">
-                <p className="text-sm mb-4">
-                  {t('profile.referral.description')}
-                </p>
-                
-                {referralCode ? (
+            {referralCode && (
+              <Card className="mt-6 relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-r from-pink-500/10 via-purple-500/10 to-indigo-500/10 bg-[size:400%_400%] animate-gradient" />
+                <div className="absolute inset-0 bg-gradient-to-r from-pink-500/10 via-purple-500/10 to-indigo-500/10 bg-[size:400%_400%] blur-xl animate-gradient" />
+                <CardHeader className="pb-3 relative">
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    {t('profile.referral.title')}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="relative">
+                  <p className="text-sm mb-4">
+                    {t('profile.referral.description')}
+                  </p>
+                  
                   <div className="space-y-4">
                     <div className="relative">
                       <p className="text-sm text-muted-foreground mb-1">{t('profile.referral.yourLink')}</p>
@@ -582,24 +574,9 @@ export default function ProfilePage() {
                       </div>
                     </div>
                   </div>
-                ) : (
-                  <Button
-                    className="w-full"
-                    onClick={handleGenerateCode}
-                    disabled={isGeneratingCode}
-                  >
-                    {isGeneratingCode ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        {t('profile.referral.generating')}
-                      </>
-                    ) : (
-                      t('profile.referral.getLink')
-                    )}
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
           </div>
           
           {/* Правая колонка с вкладками */}
