@@ -40,10 +40,10 @@ export function ReferralTab({ userId, locale }: ReferralTabProps) {
         }
         
         setReferralInfo({
-          referralCode: result.referralCode ?? '', // Используем оператор ?? для дефолтного значения
-          referralLink: result.referralLink ?? '', // Используем оператор ?? для дефолтного значения
-          totalReferrals: result.totalReferrals ?? 0, // Используем оператор ?? для дефолтного значения
-          activeReferrals: result.activeReferrals ?? 0, // Используем оператор ?? для дефолтного значения
+          referralCode: result.referralCode || '',
+          referralLink: result.referralLink || '',
+          totalReferrals: result.totalReferrals || 0,
+          activeReferrals: result.activeReferrals || 0,
         });
         
       } catch (err) {

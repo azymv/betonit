@@ -392,16 +392,16 @@ export default function ProfilePage() {
                     {t('profile.activity')}
                   </CardTitle>
                   <TabsList>
-                    <TabsTrigger value="bets">
-                      {t('profile.myBets')}
-                    </TabsTrigger>
-                    <TabsTrigger value="transactions">
-                      {t('profile.transactions')}
-                    </TabsTrigger>
-                    <TabsTrigger value="referrals">
-                      {t('referral.title')}
-                    </TabsTrigger>
-                  </TabsList>
+  <TabsTrigger value="bets">
+    {t('profile.myBets')}
+  </TabsTrigger>
+  <TabsTrigger value="transactions">
+    {t('profile.transactions')}
+  </TabsTrigger>
+  <TabsTrigger value="referrals">
+    {t('referral.title')}
+  </TabsTrigger>
+</TabsList>
                 </div>
               </CardHeader>
               <CardContent>
