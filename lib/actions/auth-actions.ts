@@ -60,9 +60,9 @@ export async function createUserProfile(userId: string, userData: {
       // Проверка, что у клиента есть доступ к таблице users
       try {
         const { error: accessCheckError } = await supabase
-          .from('users')
-          .select('count(*)')
-          .limit(1);
+  .from('users')
+  .select('id')
+  .limit(1);
           
         if (accessCheckError) {
           console.error('Client may not have access to users table:', accessCheckError);
