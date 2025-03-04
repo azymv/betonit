@@ -128,6 +128,7 @@ export default function ProfilePage() {
   
   // Загрузка данных профиля
   const loadProfileData = useCallback(async () => {
+    console.log("Starting profile data load with user:", user?.id);
     setDataLoadAttempted(true);
     setIsLoading(true);
     setError(null);
@@ -153,6 +154,9 @@ export default function ProfilePage() {
       }
       
       console.log("Loading profile data for user:", user.id);
+      
+      // Добавляем вывод всех параметров запроса перед выполнением
+      console.log("Supabase query params for profile:", { user_id: user.id });
       
       // Загружаем данные пользователя и баланс параллельно
       const [userResult, balanceResult, betsResult] = await Promise.allSettled([
@@ -188,16 +192,61 @@ export default function ProfilePage() {
         
         if (userError) {
           console.error("Error loading user data:", userError);
-          setError({
-            message: "Ошибка загрузки данных пользователя",
-            details: userError.message
-          });
-        
+          // Подробный вывод ошибки
+          console.error("User error details:", JSON.stringify(userError, null, 2));
+          
+          // Если пользователь не найден, пытаемся создать профиль
+          if (userError.code === 'PGRST116') {
+            console.log("User profile not found, creating profile");
+            
+            try {
+              // Импортируем функции из auth-actions
+              const authActions = await import('@/lib/actions/auth-actions');
+              
+              // Используем доступную функцию createUserProfile
+              const result = await authActions.createUserProfile(user.id, {
+                email: user.email || '',
+                username: user.user_metadata?.username,
+                full_name: user.user_metadata?.full_name,
+                language: localeStr || 'en',
+                referred_by: user.user_metadata?.referred_by,
+              });
+              
+              if (result.success) {
+                console.log("Profile created successfully, reloading data");
+                // Повторно загружаем данные после создания профиля
+                loadProfileData();
+                return;
+              } else {
+                console.error("Failed to create profile:", result.error);
+                setError({
+                  message: "Failed to create profile",
+                  details: result.error && typeof result.error === 'object' && 'message' in result.error 
+                    ? String(result.error.message) 
+                    : "Unknown error"
+                });
+              }
+            } catch (importError) {
+              console.error("Error importing or calling createUserProfile:", importError);
+              setError({
+                message: "Error creating profile",
+                details: importError instanceof Error ? importError.message : "Unknown error"
+              });
+            }
+          } else {
+            setError({
+              message: "Error loading user data",
+              details: userError.message
+            });
+          }
         } else if (userData) {
+          console.log("User data loaded successfully:", userData);
           setReferralCode(userData.referral_code || '');
         }
       } else {
-        console.error("Failed to load user data:", userResult.reason);
+        console.error("Promise rejection in user data loading:", userResult.reason);
+        // Подробный вывод ошибки
+        console.error("User promise rejection details:", JSON.stringify(userResult.reason, null, 2));
       }
       
       // Обрабатываем результат загрузки баланса
@@ -206,12 +255,17 @@ export default function ProfilePage() {
         
         if (balanceError) {
           console.error("Error loading balance:", balanceError);
+          // Подробный вывод ошибки
+          console.error("Balance error details:", JSON.stringify(balanceError, null, 2));
           // Не прерываем выполнение, чтобы показать хотя бы часть данных
         } else if (balanceData) {
+          console.log("Balance data loaded successfully:", balanceData);
           setBalance(balanceData.amount || 0);
         }
       } else {
-        console.error("Failed to load balance:", balanceResult.reason);
+        console.error("Promise rejection in balance loading:", balanceResult.reason);
+        // Подробный вывод ошибки
+        console.error("Balance promise rejection details:", JSON.stringify(balanceResult.reason, null, 2));
         if (balanceResult.reason instanceof Error) {
           setError({
             message: "Failed to load balance",
@@ -226,17 +280,24 @@ export default function ProfilePage() {
         
         if (betsError) {
           console.error("Error loading bets:", betsError);
+          // Подробный вывод ошибки
+          console.error("Bets error details:", JSON.stringify(betsError, null, 2));
         } else if (betsData) {
+          console.log("Bets data loaded successfully, count:", betsData.length);
           // Приводим данные к нужному типу
           const typedBets = betsData as unknown as BetWithEvent[];
           setUserBets(typedBets);
           setBetStats(calculateBetStats(typedBets));
         }
       } else {
-        console.error("Failed to load bets:", betsResult.reason);
+        console.error("Promise rejection in bets loading:", betsResult.reason);
+        // Подробный вывод ошибки
+        console.error("Bets promise rejection details:", JSON.stringify(betsResult.reason, null, 2));
       }
     } catch (err) {
       console.error("Error loading profile data:", err);
+      // Подробный вывод ошибки
+      console.error("Profile data error details:", JSON.stringify(err, null, 2));
       setError({
         message: "Error loading profile data",
         details: err instanceof Error ? err.message : "Unknown error"

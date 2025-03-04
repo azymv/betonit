@@ -1,15 +1,11 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
 import { locales, defaultLocale } from '@/lib/i18n-config';
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   // Получаем текущий путь
   const { pathname } = request.nextUrl;
-  
-  // Skip middleware for auth callback route
-  if (pathname.startsWith('/auth/callback')) {
-    return NextResponse.next();
-  }
   
   // Игнорируем статические файлы и API маршруты
   if (
@@ -19,6 +15,13 @@ export function middleware(request: NextRequest) {
   ) {
     return NextResponse.next();
   }
+  
+  // Создаем клиент Supabase для middleware
+  const res = NextResponse.next();
+  const supabase = createMiddlewareClient({ req: request, res });
+  
+  // Обновляем сессию, если необходимо
+  await supabase.auth.getSession();
   
   // Проверяем, есть ли уже локаль в пути
   const pathnameHasLocale = locales.some(
@@ -31,7 +34,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
   
-  return NextResponse.next();
+  return res;
 }
 
 export const config = {
