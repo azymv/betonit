@@ -2,7 +2,7 @@
 const nextConfig = {
   reactStrictMode: true,
   images: {
-    domains: ['localhost', 'your-supabase-project.supabase.co'],
+    domains: ['localhost', 'https://swhvhazwszytmveskbcq.supabase.co'],
   },
   experimental: {
     serverActions: {
