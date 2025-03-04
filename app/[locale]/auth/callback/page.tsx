@@ -7,60 +7,44 @@ import { Loader2 } from 'lucide-react';
 export default function AuthCallbackPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
-  const [redirectCount, setRedirectCount] = useState(0);
+  const [error, setError] = useState(false);
   
   useEffect(() => {
-    // Предотвращаем бесконечный цикл перенаправлений
-    if (redirectCount > 3) {
-      setError('Слишком много перенаправлений. Пожалуйста, попробуйте войти снова.');
-      return;
-    }
-    
-    // Redirect to the base auth callback route
+    // Простое перенаправление на базовый обработчик auth callback
     const currentUrl = new URL(window.location.href);
     const newUrl = new URL('/auth/callback', currentUrl.origin);
     
-    // Copy all search params
-    const hasParams = searchParams.toString().length > 0;
-    if (hasParams) {
-      searchParams.forEach((value, key) => {
-        newUrl.searchParams.append(key, value);
-      });
-      
-      console.log("Redirecting to auth callback with params:", newUrl.toString());
-      setRedirectCount(prev => prev + 1);
-      
-      // Redirect with a short timeout to avoid potential loops
-      const timeout = setTimeout(() => {
-        window.location.href = newUrl.toString();
-      }, 100);
-      
-      return () => clearTimeout(timeout);
-    } else {
-      console.log("No search params found, redirecting to home");
-      router.push('/');
+    // Копируем все параметры запроса
+    searchParams.forEach((value, key) => {
+      newUrl.searchParams.append(key, value);
+    });
+    
+    try {
+      console.log("Redirecting to auth callback:", newUrl.toString());
+      window.location.href = newUrl.toString();
+    } catch (e) {
+      console.error("Error during redirect:", e);
+      setError(true);
     }
-  }, [searchParams, router, redirectCount]);
+  }, [searchParams, router]);
   
-  // Display a loading message while redirecting
+  // Показываем индикатор загрузки
   return (
-    <div className="flex flex-col justify-center items-center h-screen">
+    <div className="flex justify-center items-center h-screen">
       {error ? (
-        <div className="text-center p-4 bg-red-50 border border-red-200 rounded-md max-w-md">
-          <h2 className="text-xl font-semibold mb-4 text-red-700">Ошибка аутентификации</h2>
-          <p className="text-red-600">{error}</p>
+        <div className="text-center text-red-600">
+          <p>Произошла ошибка при перенаправлении.</p>
           <button 
-            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-            onClick={() => router.push('/auth/signin')}
+            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded" 
+            onClick={() => router.push('/')}
           >
-            Вернуться на страницу входа
+            Вернуться на главную
           </button>
         </div>
       ) : (
         <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mb-4 mx-auto text-primary" />
-          <h2 className="text-xl font-semibold mb-4">Перенаправление...</h2>
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <h2 className="text-xl font-semibold mb-2">Перенаправление...</h2>
           <p>Пожалуйста, подождите, пока мы завершаем вашу аутентификацию.</p>
         </div>
       )}
