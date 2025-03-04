@@ -103,18 +103,24 @@ export async function GET(request: NextRequest) {
           const referralCode = Math.random().toString(36).substring(2, 10).toUpperCase();
           
           // Создаем профиль напрямую через SQL запрос
-          const { error: insertError } = await supabase.rpc('create_user_profile_direct', {
-            p_user_id: data.user.id,
-            p_email: data.user.email,
-            p_username: data.user.user_metadata?.username || `user_${data.user.id.substring(0, 8)}`,
-            p_full_name: data.user.user_metadata?.full_name || '',
-            p_language: data.user.user_metadata?.language || defaultLocale,
-            p_referral_code: referralCode,
-            p_referred_by: referrerId || data.user.user_metadata?.referred_by
-          });
+          const { error: insertError } = await supabase
+            .from('users')
+            .insert({
+              id: data.user.id,
+              email: data.user.email,
+              created_at: new Date(),
+              updated_at: new Date(),
+              username: data.user.user_metadata?.username || `user_${data.user.id.substring(0, 8)}`,
+              full_name: data.user.user_metadata?.full_name || '',
+              language: data.user.user_metadata?.language || defaultLocale,
+              referral_code: referralCode,
+              referred_by: referrerId || data.user.user_metadata?.referred_by
+            });
+
+          console.log("Direct insertion result:", insertError ? `Error: ${insertError.message}` : "Success");
           
           if (insertError) {
-            console.error("Error creating user profile via RPC:", insertError);
+            console.error("Error creating user profile via direct insert:", insertError);
             
             // Запасной вариант - используем наш модуль создания профиля
             console.log("Falling back to createUserProfile function");
@@ -130,7 +136,7 @@ export async function GET(request: NextRequest) {
               console.error("Error creating user profile via fallback:", result.error);
             }
           } else {
-            console.log("Profile created successfully via RPC");
+            console.log("Profile created successfully via direct insert");
           }
         } catch (profileError) {
           console.error("Exception during profile creation:", profileError);
