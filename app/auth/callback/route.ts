@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { defaultLocale } from '@/lib/i18n-config';
+import { Database } from '@/lib/types/supabase';
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
@@ -25,7 +26,9 @@ export async function GET(request: NextRequest) {
   if (code) {
     try {
       console.log("Processing auth code");
-      const supabase = createRouteHandlerClient({ cookies });
+      // Создаем клиент Supabase с правильными заголовками
+      const cookieStore = cookies();
+      const supabase = createRouteHandlerClient<Database>({ cookies: () => cookieStore });
       
       const { error } = await supabase.auth.exchangeCodeForSession(code);
       
@@ -60,20 +63,23 @@ export async function GET(request: NextRequest) {
         console.log("Creating user profile after authentication");
         
         try {
+          // Генерируем уникальный реферальный код
+          const referralCode = Math.random().toString(36).substring(2, 10);
+          
           // Создаем запись в таблице users
           const { error: userError } = await supabase
             .from('users')
-            .insert({
+            .upsert({
               id: session.user.id,
               email: session.user.email || '',
               username: session.user.user_metadata?.username || `user_${session.user.id.substring(0, 8)}`,
               full_name: session.user.user_metadata?.full_name || '',
               language: session.user.user_metadata?.language || defaultLocale,
               referred_by: session.user.user_metadata?.referred_by || null,
-              referral_code: Math.random().toString(36).substring(2, 10),
+              referral_code: referralCode,
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString()
-            });
+            }, { onConflict: 'id' });
           
           if (userError) {
             console.error("Error creating user profile:", userError);
@@ -83,13 +89,13 @@ export async function GET(request: NextRequest) {
             // Создаем начальный баланс
             const { error: balanceError } = await supabase
               .from('balances')
-              .insert({
+              .upsert({
                 user_id: session.user.id,
                 amount: 1000,
                 currency: 'coins',
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
-              });
+              }, { onConflict: 'user_id' });
             
             if (balanceError) {
               console.error("Error creating initial balance:", balanceError);

@@ -48,7 +48,17 @@ export default function ProfilePage() {
   const { t } = useTranslation(localeStr);
   const router = useRouter();
   const { user, isLoading: isAuthLoading } = useAuth();
-  const supabase = createClientComponentClient<Database>();
+  
+  // Создаем клиент Supabase с нужными заголовками
+  const supabase = createClientComponentClient<Database>({
+    options: {
+      global: {
+        headers: {
+          'Accept': 'application/json'
+        }
+      }
+    }
+  });
   
   // Состояние компонента
   const [balance, setBalance] = useState(0);
