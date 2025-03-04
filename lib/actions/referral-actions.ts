@@ -52,7 +52,7 @@ export async function getUserReferralInfo(userId: string): Promise<ReferralInfoR
       .from('users')
       .select('id')
       .eq('referred_by', userId)
-      .filter('id', 'in', (supabase.from('bets').select('user_id').limit(1000)));
+      .filter('id', 'in', supabase.from('bets').select('user_id').limit(1000));
     
     if (activeError) {
       console.error("Error fetching active referrals:", activeError);
