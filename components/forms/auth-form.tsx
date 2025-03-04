@@ -62,6 +62,7 @@ export function AuthForm({ type, redirectPath = '/' }: AuthFormProps) {
   // Получаем реферальный код из URL и сохраняем его
   useEffect(() => {
     const referralCode = searchParams.get('ref');
+    console.log('Referral code from URL:', referralCode);
     if (referralCode && type === 'signup') {
       // Сохраняем код в sessionStorage для использования после подтверждения email
       sessionStorage.setItem('referralCode', referralCode);
@@ -74,6 +75,8 @@ export function AuthForm({ type, redirectPath = '/' }: AuthFormProps) {
             .eq('referral_code', referralCode)
             .single();
             
+          console.log('Referrer data:', data, 'Error:', error);
+          
           if (!error && data) {
             setReferrerId(data.id);
             // Проверяем, что username существует, прежде чем устанавливать его

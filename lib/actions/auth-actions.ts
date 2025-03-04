@@ -19,7 +19,7 @@ interface UserProfileData {
  * @param userData Данные пользователя для создания профиля
  */
 export async function createUserProfile(userId: string, userData: UserProfileData) {
-  console.log("Creating user profile for:", userId);
+  console.log("Creating user profile with data:", userData);
   
   try {
     const supabase = createServerComponentClient({ cookies });
@@ -63,6 +63,8 @@ export async function createUserProfile(userId: string, userData: UserProfileDat
         referral_code: referralCode,
         referred_by: referred_by || null
       });
+    
+    console.log("User creation result, error:", userError);
     
     if (userError) {
       console.error("Error creating user:", userError);

@@ -118,6 +118,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const apiKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
       console.log('API key exists:', !!apiKey);
       
+      console.log('Sign up userData:', userData);
+      
       // Используем новый серверный обработчик для аутентификации
       const { error } = await supabase.auth.signUp({
         email,
@@ -132,6 +134,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         },
       });
+      
+      console.log('Sign up response error:', error);
       
       if (error) {
         return { error };
