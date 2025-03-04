@@ -3,7 +3,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
-import { Database } from '@/lib/types/supabase';
 import { Session, User } from '@supabase/supabase-js';
 
 interface AuthContextType {
@@ -34,7 +33,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
-  const supabase = createClientComponentClient<Database>({
+  
+  // Создаем клиент Supabase с правильными заголовками
+  const supabase = createClientComponentClient({
     options: {
       global: {
         headers: {
@@ -112,6 +113,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       // Определяем локаль для редиректа
       const locale = userData?.language || 'en';
+      
+      // Проверяем наличие API ключа
+      const apiKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      console.log('API key exists:', !!apiKey);
       
       // Используем новый серверный обработчик для аутентификации
       const { error } = await supabase.auth.signUp({

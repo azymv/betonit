@@ -28,7 +28,18 @@ export default function AuthCallbackPage() {
       [key: string]: string | undefined;
     } | null
   ) => {
-    const supabase = createClientComponentClient();
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const supabase = createClientComponentClient({
+      options: {
+        global: {
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'apikey': supabaseKey || ''
+          }
+        }
+      }
+    });
     
     // Проверяем, существует ли профиль
     const { data: profile, error: profileError } = await supabase
@@ -98,7 +109,18 @@ export default function AuthCallbackPage() {
         // или пользователь попал на эту страницу напрямую
         if (!code) {
           // Проверяем, авторизован ли пользователь
-          const supabase = createClientComponentClient();
+          const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+          const supabase = createClientComponentClient({
+            options: {
+              global: {
+                headers: {
+                  'Accept': 'application/json',
+                  'Content-Type': 'application/json',
+                  'apikey': supabaseKey || ''
+                }
+              }
+            }
+          });
           const { data: { session } } = await supabase.auth.getSession();
           
           if (session) {
@@ -115,7 +137,22 @@ export default function AuthCallbackPage() {
         // Если код есть, значит middleware не перенаправил запрос на серверный обработчик
         // Это может произойти, если пользователь напрямую перешел по ссылке
         // Обрабатываем код на клиенте
-        const supabase = createClientComponentClient();
+        const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+        console.log('Client side - API key exists:', !!supabaseKey);
+        
+        const supabase = createClientComponentClient({
+          options: {
+            global: {
+              headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'apikey': supabaseKey || ''
+              }
+            }
+          }
+        });
+        
+        console.log('Exchanging code for session on client side');
         const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
         
         if (exchangeError) {

@@ -13,7 +13,7 @@ const allowedOrigins = [
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*', // Will be replaced with the actual origin
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Date, X-Api-Version',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Date, X-Api-Version, apikey',
   'Access-Control-Allow-Credentials': 'true',
 };
 
@@ -44,7 +44,20 @@ export async function GET(request: NextRequest) {
 
     // Create a Supabase client for the route handler
     const cookieStore = cookies();
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+    const supabase = createRouteHandlerClient({ 
+      cookies: () => cookieStore
+    });
+    
+    // Ensure API key is included in the request
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    console.log('Supabase URL exists:', !!supabaseUrl);
+    console.log('Supabase API key exists:', !!supabaseKey);
+    
+    // Create headers for the Supabase request
+    const requestHeaders = new Headers();
+    requestHeaders.append('apikey', supabaseKey || '');
+    requestHeaders.append('Authorization', `Bearer ${supabaseKey}`);
     
     // Exchange the code for a session (this will use the code_verifier from the cookie)
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
