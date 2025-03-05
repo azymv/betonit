@@ -26,36 +26,68 @@ export function ReferralTab({ userId, locale }: ReferralTabProps) {
     activeReferrals: number;
   } | null>(null);
   
+  // Базовая функция для генерации ссылки на клиенте (резервный вариант)
+  const generateLocalReferralLink = (code: string) => {
+    const baseUrl = window.location.origin;
+    return `${baseUrl}/${locale}/auth/signup?ref=${code}`;
+  };
+  
   // Загружаем информацию о рефералах
   useEffect(() => {
     const loadReferralInfo = async () => {
       try {
+        console.log('Starting to load referral info for user:', userId);
         setLoading(true);
-        const result = await getUserReferralInfo(userId);
         
-        if (result.error) {
-          setError(t('referral.errorLoading'));
-          console.error("Error loading referral info:", result.error);
+        if (!userId) {
+          console.error('Invalid userId provided');
+          setError('Invalid user ID');
+          setLoading(false);
           return;
         }
         
+        let result;
+        try {
+          result = await getUserReferralInfo(userId);
+          console.log('Received result from getUserReferralInfo:', result);
+        } catch (serviceError) {
+          console.error('Error calling getUserReferralInfo:', serviceError);
+          throw serviceError;
+        }
+        
+        if (result.error) {
+          console.error("Error in getUserReferralInfo result:", result.error);
+          setError(t('referral.errorLoading'));
+          setLoading(false);
+          return;
+        }
+        
+        // Генерируем локальную ссылку, если ссылка с сервера пуста
+        const finalReferralLink = result.referralLink || 
+          (result.referralCode ? generateLocalReferralLink(result.referralCode) : '');
+        
         setReferralInfo({
           referralCode: result.referralCode || '',
-          referralLink: result.referralLink || '',
-          totalReferrals: result.totalReferrals || 0,
-          activeReferrals: result.activeReferrals || 0,
+          referralLink: finalReferralLink,
+          totalReferrals: typeof result.totalReferrals === 'number' ? result.totalReferrals : 0,
+          activeReferrals: typeof result.activeReferrals === 'number' ? result.activeReferrals : 0,
         });
         
+        console.log('Successfully set referral info state');
+        
       } catch (err) {
-        setError(t('referral.errorLoading'));
         console.error("Exception loading referral info:", err);
+        setError(t('referral.errorLoading'));
       } finally {
         setLoading(false);
+        console.log('Loading state set to false');
       }
     };
     
-    loadReferralInfo();
-  }, [userId, t]);
+    if (userId) {
+      loadReferralInfo();
+    }
+  }, [userId, t, locale]);
   
   // Копирование реферальной ссылки
   const copyToClipboard = () => {
@@ -94,7 +126,7 @@ export function ReferralTab({ userId, locale }: ReferralTabProps) {
   }
   
   // Показываем информацию о рефералах
-  if (!referralInfo) {
+  if (!referralInfo || !referralInfo.referralCode) {
     return (
       <div className="text-center p-8">
         <AlertCircle className="h-8 w-8 mx-auto mb-4 text-muted-foreground" />

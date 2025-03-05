@@ -3,7 +3,6 @@
 import { createServerActionClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { Database } from '@/lib/types/supabase';
-import { processFirstBet } from './referral-actions';
 
 interface PlaceBetParams {
   eventId: string;
@@ -134,24 +133,16 @@ export async function placeBet(params: PlaceBetParams) {
       // Не отменяем операцию, так как основная функциональность выполнена
     }
 
-    // 4. Проверка на первую ставку и обработка реферальной логики
-    // В упрощенной версии реферальной программы нам нужно только проверить, 
-    // первая ли это ставка, и зафиксировать это в ответе
-    const firstBetResult = await checkFirstBet(userId, newBet.id);
+    // 4. Проверка на первую ставку
+    const isFirstBet = await checkFirstBet(userId, newBet.id);
     
-    // Если это первая ставка, обрабатываем реферальную логику
-    if (firstBetResult) {
-      const { error: referralError } = await processFirstBet(userId);
-      if (referralError) {
-        console.error('Error processing referral for first bet:', referralError);
-        // Не прерываем выполнение, так как основная функциональность выполнена
-      }
-    }
+    // 5. События для аналитики будут отслеживаться в клиентской части
+    // после возврата результата размещения ставки
     
     return { 
       success: true, 
       betId: newBet.id,
-      isFirstBet: firstBetResult
+      isFirstBet
     };
   } catch (err) {
     console.error('Error in placeBet:', err);

@@ -2,14 +2,13 @@
 
 import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
-import { createServerActionClient } from '@supabase/auth-helpers-nextjs';
-import { Database } from '@/lib/types/supabase';
+import { generateReferralCode } from '../utils/referral-utils';
 
 interface ReferralInfoResponse {
-  referralCode?: string;
-  referralLink?: string;
-  totalReferrals?: number;
-  activeReferrals?: number;
+  referralCode: string;
+  referralLink: string;
+  totalReferrals: number;
+  activeReferrals: number;
   error: Error | null;
 }
 
@@ -21,6 +20,7 @@ interface ReferralInfoResponse {
  */
 export async function getUserReferralInfo(userId: string): Promise<ReferralInfoResponse> {
   try {
+    console.log('getUserReferralInfo called for user:', userId);
     const supabase = createServerComponentClient({ cookies });
     
     // Получаем реферальный код пользователя
@@ -30,126 +30,82 @@ export async function getUserReferralInfo(userId: string): Promise<ReferralInfoR
       .eq('id', userId)
       .single();
     
-    if (userError || !userData?.referral_code) {
+    console.log('User data query result:', userData, 'Error:', userError);
+    
+    let referralCode = userData?.referral_code || '';
+    
+    if (userError) {
       console.error("Error fetching user referral code:", userError);
-      return { error: userError || new Error('Referral code not found') };
+      return { 
+        referralCode: '',
+        referralLink: '',
+        totalReferrals: 0,
+        activeReferrals: 0,
+        error: userError
+      };
     }
     
-    // Получаем количество приглашенных пользователей
-    const { data: referralsData, error: referralsError } = await supabase
-      .from('users')
-      .select('id, created_at')
-      .eq('referred_by', userId);
-    
-    if (referralsError) {
-      console.error("Error fetching referrals count:", referralsError);
-      return { error: referralsError };
-    }
-    
-    // Получаем количество активных рефералов (сделавших ставку)
-    // Сначала получаем всех рефералов
-    const referredUserIds = referralsData?.map(user => user.id) || [];
-    
-    // Если нет рефералов, то и активных рефералов нет
-    let activeReferralsCount = 0;
-    
-    if (referredUserIds.length > 0) {
-      // Затем проверяем, кто из них сделал ставки
-      const { data: betsData, error: betsError } = await supabase
-        .from('bets')
-        .select('user_id')
-        .in('user_id', referredUserIds);
+    if (!referralCode) {
+      console.log('No referral code found, generating one...');
+      // Если код не найден, генерируем его
+      referralCode = generateReferralCode(userId);
       
-      if (betsError) {
-        console.error("Error fetching bets for referrals:", betsError);
-        return { error: betsError };
+      // Обновляем запись пользователя
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ referral_code: referralCode })
+        .eq('id', userId);
+      
+      if (updateError) {
+        console.error("Error updating referral code:", updateError);
+        return { 
+          referralCode: '',
+          referralLink: '',
+          totalReferrals: 0,
+          activeReferrals: 0,
+          error: updateError
+        };
       }
-      
-      // Получаем уникальные ID пользователей, сделавших ставки
-      const activeUserIds = [...new Set(betsData?.map(bet => bet.user_id))];
-      activeReferralsCount = activeUserIds.length;
     }
     
-    // Формируем реферальную ссылку
+    // Формируем реферальную ссылку (используем en как язык по умолчанию для MVP)
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://betonit-sepia.vercel.app';
-    const referralLink = `${baseUrl}/auth/signup?ref=${userData.referral_code}`;
+    const referralLink = `${baseUrl}/en/auth/signup?ref=${referralCode}`;
+    console.log('Generated referral link:', referralLink);
+    
+    // Для MVP версии упрощаем запросы на получение статистики
+    let totalReferrals = 0;
+    const activeReferrals = 0;
+    
+    try {
+      // Получаем количество приглашенных пользователей
+      const { data: referralsData } = await supabase
+        .from('users')
+        .select('id')
+        .eq('referred_by', userId);
+      
+      totalReferrals = referralsData?.length || 0;
+    } catch (err) {
+      console.error('Error fetching referrals count:', err);
+      // Продолжаем выполнение, не выбрасывая ошибку
+    }
     
     return {
-      referralCode: userData.referral_code,
+      referralCode,
       referralLink,
-      totalReferrals: referralsData?.length || 0,
-      activeReferrals: activeReferralsCount,
+      totalReferrals,
+      activeReferrals,
       error: null
     };
     
   } catch (error) {
     console.error("Exception in getUserReferralInfo:", error);
-    return { error: error instanceof Error ? error : new Error(String(error)) };
-  }
-}
-
-/**
- * Process first bet for a user and update referral rewards if applicable
- */
-export async function processFirstBet(userId: string): Promise<{ error: Error | null }> {
-  try {
-    const supabase = createServerActionClient<Database>({ cookies });
-    
-    // Get the user's referrer
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('referred_by')
-      .eq('id', userId)
-      .single();
-    
-    if (userError) {
-      console.error("Error fetching user referrer:", userError);
-      return { error: userError };
-    }
-    
-    // If user was referred, update referrer's stats
-    if (userData?.referred_by) {
-      console.log(`Processing first bet for user ${userId} referred by ${userData.referred_by}`);
-      // For now, we'll just log it
-    }
-    
-    return { error: null };
-  } catch (error) {
-    console.error("Exception in processFirstBet:", error);
-    return { error: error instanceof Error ? error : new Error(String(error)) };
-  }
-}
-
-/**
- * Creates a unique referral code for a user and updates their record in the database
- * 
- * @param userId The user ID to create a referral code for
- * @returns Object with the referral code or error
- */
-export async function createReferralCode(userId: string): Promise<{ referralCode?: string; error: Error | null }> {
-  try {
-    const supabase = createServerActionClient<Database>({ cookies });
-    
-    // Import the utility function here to avoid circular dependencies
-    const { generateReferralCode } = await import('../utils/referral-utils');
-    
-    // Generate a unique referral code
-    const referralCode = generateReferralCode(userId);
-    
-    // Update the user record with the new referral code
-    const { error } = await supabase
-      .from('users')
-      .update({ referral_code: referralCode })
-      .eq('id', userId);
-    
-    if (error) {
-      console.error("Error updating user with referral code:", error);
-      return { error };
-    }
-    
-    return { referralCode, error: null };
-  } catch (error) {
-    console.error("Exception in createReferralCode:", error);
-    return { error: error instanceof Error ? error : new Error(String(error)) };
+    return { 
+      referralCode: '',
+      referralLink: '',
+      totalReferrals: 0,
+      activeReferrals: 0,
+      error: error instanceof Error ? error : new Error(String(error))
+    };
   }
 }
