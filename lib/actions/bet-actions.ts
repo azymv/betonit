@@ -136,6 +136,52 @@ export async function placeBet(params: PlaceBetParams) {
     // 4. Проверка на первую ставку
     const isFirstBet = await checkFirstBet(userId, newBet.id);
     
+    // Начисление реферальных бонусов при первой ставке
+    if (isFirstBet) {
+      try {
+        // Получаем информацию о том, был ли пользователь приглашен
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('referred_by')
+          .eq('id', userId)
+          .single();
+        
+        if (!userError && userData?.referred_by) {
+          const referrerId = userData.referred_by;
+          
+          // Начисляем 100 монет пригласившему
+          await supabase.rpc('add_coins', {
+            p_user_id: referrerId,
+            p_amount: 100,
+            p_description: `Referral reward for inviting a user who made their first bet`
+          });
+          
+          // Начисляем 50 монет приглашенному
+          await supabase.rpc('add_coins', {
+            p_user_id: userId,
+            p_amount: 50,
+            p_description: `Welcome bonus for making your first bet as a referred user`
+          });
+          
+          // Обновляем статистику (если есть таблица для этого)
+          await supabase
+            .from('referral_rewards')
+            .insert({
+              referrer_id: referrerId,
+              referred_id: userId,
+              referrer_amount: 100,
+              referred_amount: 50,
+              status: 'completed'
+            });
+          
+          console.log('Successfully credited referral bonuses');
+        }
+      } catch (referralError) {
+        console.error('Error processing referral bonuses:', referralError);
+        // Не блокируем основную функциональность ставки из-за ошибки с бонусами
+      }
+    }
+    
     // 5. События для аналитики будут отслеживаться в клиентской части
     // после возврата результата размещения ставки
     

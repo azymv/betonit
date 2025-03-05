@@ -298,7 +298,14 @@ export interface Database {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      add_coins: {
+        Args: {
+          p_user_id: string;
+          p_amount: number;
+          p_description: string;
+        };
+        Returns: void;
+      };
     }
     Enums: {
       bet_status: "pending" | "active" | "won" | "lost" | "cancelled"
