@@ -12,8 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useTranslation, locales } from "@/lib/i18n-config";
-import { NavBar } from "@/components/ui/tubelight-navbar";
-import { Home, Trophy, Calendar, LogOut, User } from "lucide-react";
+import { Home, Trophy, Calendar, LogOut, ChevronDown } from "lucide-react";
 import { useAuth } from "@/lib/context/auth-context";
 
 export function Header({ locale }: { locale: string }) {
@@ -52,25 +51,66 @@ export function Header({ locale }: { locale: string }) {
   };
 
   return (
-    <header className="border-b relative">
+    <header className="bg-black text-white fixed top-0 left-0 right-0 z-50">
       <div className="container mx-auto px-4 py-3 flex justify-between items-center">
-        <Link href={`/${locale}`} className="text-xl font-bold z-10">
-          BetOnIt
-        </Link>
+        <div className="flex items-center">
+          <Link href={`/${locale}`} className="text-xl font-bold text-white mr-6">
+            BetOnIt
+          </Link>
 
-        <NavBar items={navItems} className="absolute left-1/2 -translate-x-1/2" />
+          {/* Десктопная навигация - только текст */}
+          <nav className="hidden md:flex items-center space-x-4">
+            {navItems.map((item) => {
+              const isActive = pathname === item.url || pathname.startsWith(`${item.url}/`);
+              return (
+                <Link 
+                  key={item.url} 
+                  href={item.url}
+                  className={`flex items-center py-1 px-2 rounded-md transition-colors ${
+                    isActive 
+                      ? 'text-white font-medium hover:text-secondary' 
+                      : 'text-gray-300 hover:text-secondary'
+                  }`}
+                >
+                  <span>{item.name}</span>
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
 
-        <div className="flex items-center space-x-4 z-10">
+        <div className="flex items-center space-x-4">
+          {/* Мобильная навигация - только иконки */}
+          <nav className="flex md:hidden items-center space-x-3 mr-2">
+            {navItems.map((item) => {
+              const isActive = pathname === item.url || pathname.startsWith(`${item.url}/`);
+              return (
+                <Link 
+                  key={item.url} 
+                  href={item.url}
+                  className={`flex items-center justify-center p-1.5 rounded-md transition-colors ${
+                    isActive 
+                      ? 'text-white hover:text-secondary' 
+                      : 'text-gray-300 hover:text-secondary'
+                  }`}
+                >
+                  <item.icon className="h-5 w-5" />
+                </Link>
+              );
+            })}
+          </nav>
+          
           {/* Переключатель языка */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm">
+              <Button variant="ghost" size="sm" className="text-white hover:text-secondary hover:bg-transparent">
                 {locale === "en" ? "🇺🇸 EN" : "🇷🇺 RU"}
+                <ChevronDown className="ml-1 h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className="bg-gray-900 text-white border-gray-700">
               {locales.map((l) => (
-                <DropdownMenuItem key={l} asChild>
+                <DropdownMenuItem key={l} asChild className="hover:bg-gray-800 hover:text-primary focus:text-primary">
                   <Link href={getLocalePath(l)}>
                     {l === "en" ? "🇺🇸 English" : "🇷🇺 Русский"}
                   </Link>
@@ -81,41 +121,47 @@ export function Header({ locale }: { locale: string }) {
 
           {isLoading ? (
             // Показываем заглушку во время загрузки
-            <div className="h-9 w-20 bg-slate-200 animate-pulse rounded" />
+            <div className="h-9 w-20 bg-gray-700 animate-pulse rounded" />
           ) : user ? (
             // Аватар пользователя
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Avatar className="h-8 w-8 cursor-pointer">
-                  <AvatarImage 
-                    src={user.user_metadata?.avatar_url || ""} 
-                    alt={user.user_metadata?.username || "User"} 
-                  />
-                  <AvatarFallback>
-                    {user.user_metadata?.username 
-                      ? user.user_metadata.username[0].toUpperCase() 
-                      : user.email ? user.email[0].toUpperCase() : "U"}
-                  </AvatarFallback>
-                </Avatar>
+                <div className="flex items-center space-x-2 cursor-pointer hover:bg-gray-800 hover:text-secondary rounded-md px-2 py-1">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage 
+                      src={user.user_metadata?.avatar_url || ""} 
+                      alt={user.user_metadata?.username || "User"} 
+                    />
+                    <AvatarFallback className="bg-gray-700 text-white">
+                      {user.user_metadata?.username 
+                        ? user.user_metadata.username[0].toUpperCase() 
+                        : user.email ? user.email[0].toUpperCase() : "U"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="text-sm font-medium">
+                    {user.user_metadata?.username || user.email?.split('@')[0] || "User"}
+                  </span>
+                  <ChevronDown className="h-4 w-4" />
+                </div>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem asChild>
+              <DropdownMenuContent align="end" className="bg-gray-900 text-white border-gray-700">
+                <DropdownMenuItem asChild className="hover:bg-gray-800 hover:text-primary focus:text-primary">
                   <Link href={`/${locale}/profile`}>
                     {t("nav.profile")}
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild>
+                <DropdownMenuItem asChild className="hover:bg-gray-800 hover:text-primary focus:text-primary">
                   <Link href={`/${locale}/profile/bets`}>
                     {t("profile.myBets")}
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild>
+                <DropdownMenuItem asChild className="hover:bg-gray-800 hover:text-primary focus:text-primary">
                   <Link href={`/${locale}/profile/balance`}>
                     {t("profile.balance")}
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSignOut} className="text-red-500">
+                <DropdownMenuSeparator className="bg-gray-700" />
+                <DropdownMenuItem onClick={handleSignOut} className="text-red-400 hover:bg-gray-800 hover:text-red-300 focus:text-red-300">
                   <LogOut className="h-4 w-4 mr-2" />
                   {t("nav.signout")}
                 </DropdownMenuItem>
@@ -124,12 +170,12 @@ export function Header({ locale }: { locale: string }) {
           ) : (
             // Кнопки входа и регистрации
             <div className="flex space-x-2">
-              <Button variant="outline" className="border-primary text-primary hover:bg-primary/10" asChild>
+              <Button variant="ghost" className="text-white hover:text-secondary hover:bg-transparent" asChild>
                 <Link href={`/${locale}/auth/signin`}>
                   {t("nav.signin")}
                 </Link>
               </Button>
-              <Button className="bg-secondary text-secondary-foreground hover:bg-secondary/90" asChild>
+              <Button className="bg-white text-black hover:bg-secondary hover:text-black" asChild>
                 <Link href={`/${locale}/auth/signup`}>
                   {t("nav.signup")}
                 </Link>

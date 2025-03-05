@@ -339,6 +339,86 @@ export default function ProfilePage() {
             </CardContent>
           </Card>
           
+          {/* Реферальная программа */}
+          <div className="mt-6">
+            <div className="relative min-h-[14rem] rounded-[1.25rem] border-[0.75px] border-border p-2 md:rounded-[1.5rem] md:p-3 overflow-hidden">
+              {/* Custom always-active glowing effect */}
+              <div className="pointer-events-none absolute inset-0 rounded-[inherit] overflow-hidden">
+                {/* Background gradient layer */}
+                <div 
+                  className="absolute inset-[-20%] rounded-[inherit]"
+                  style={{
+                    background: `
+                      radial-gradient(circle, #dd7bbb 10%, #dd7bbb00 20%),
+                      radial-gradient(circle at 40% 40%, #d79f1e 5%, #d79f1e00 15%),
+                      radial-gradient(circle at 60% 60%, #5a922c 10%, #5a922c00 20%), 
+                      radial-gradient(circle at 40% 60%, #4c7894 10%, #4c789400 20%)
+                    `,
+                    backgroundSize: '400% 400%',
+                    animation: 'gradientAnimation 15s ease infinite'
+                  }}
+                />
+                
+                {/* Rotating border with extended size to prevent gaps */}
+                <div 
+                  className="absolute inset-[-15px] rounded-[inherit]"
+                  style={{
+                    animation: 'rotate 10s linear infinite',
+                    background: `conic-gradient(from 0deg at 50% 50%, 
+                      #dd7bbb 0%, 
+                      #d79f1e 25%, 
+                      #5a922c 50%, 
+                      #4c7894 75%, 
+                      #dd7bbb 100%
+                    )`,
+                    filter: 'blur(12px)'
+                  }}
+                />
+                
+                {/* Additional fill layer to ensure no gaps */}
+                <div 
+                  className="absolute inset-[-2px] rounded-[inherit]"
+                  style={{
+                    background: `conic-gradient(from 0deg at 50% 50%, 
+                      #dd7bbb 0%, 
+                      #d79f1e 25%, 
+                      #5a922c 50%, 
+                      #4c7894 75%, 
+                      #dd7bbb 100%
+                    )`,
+                    filter: 'blur(5px)',
+                    opacity: 0.8
+                  }}
+                />
+                
+                {/* Sharp border overlay */}
+                <div 
+                  className="absolute inset-0 rounded-[inherit]"
+                  style={{
+                    animation: 'rotate 10s linear infinite',
+                    background: `conic-gradient(from 0deg at 50% 50%, 
+                      #dd7bbb 0%, 
+                      #d79f1e 25%, 
+                      #5a922c 50%, 
+                      #4c7894 75%, 
+                      #dd7bbb 100%
+                    )`,
+                    opacity: 0.7
+                  }}
+                />
+              </div>
+              
+              <div className="relative flex h-full flex-col justify-between overflow-hidden rounded-xl border-[0.75px] bg-background p-6 shadow-sm dark:shadow-[0px_0px_27px_0px_rgba(45,45,45,0.3)] md:p-6">
+                <CardHeader className="p-0 pb-4">
+                  <CardTitle className="text-xl">{t('referral.title')}</CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <ReferralTab userId={user!.id} locale={localeStr} />
+                </CardContent>
+              </div>
+            </div>
+          </div>
+          
           {/* Статистика ставок */}
           {betStats.total > 0 && (
             <Card className="mt-6">
@@ -392,16 +472,13 @@ export default function ProfilePage() {
                     {t('profile.activity')}
                   </CardTitle>
                   <TabsList>
-  <TabsTrigger value="bets">
-    {t('profile.myBets')}
-  </TabsTrigger>
-  <TabsTrigger value="transactions">
-    {t('profile.transactions')}
-  </TabsTrigger>
-  <TabsTrigger value="referrals">
-    {t('referral.title')}
-  </TabsTrigger>
-</TabsList>
+                    <TabsTrigger value="bets">
+                      {t('profile.bets')}
+                    </TabsTrigger>
+                    <TabsTrigger value="transactions">
+                      {t('profile.transactions')}
+                    </TabsTrigger>
+                  </TabsList>
                 </div>
               </CardHeader>
               <CardContent>
@@ -447,11 +524,6 @@ export default function ProfilePage() {
                     <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
                     <p className="text-muted-foreground">{t('profile.comingSoon')}</p>
                   </div>
-                </TabsContent>
-                
-                {/* Вкладка с реферальной программой */}
-                <TabsContent value="referrals" className="mt-0">
-                  <ReferralTab userId={user!.id} locale={localeStr} />
                 </TabsContent>
               </CardContent>
             </Card>
