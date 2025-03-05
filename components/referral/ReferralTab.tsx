@@ -16,16 +16,18 @@ interface ReferralTabProps {
 
 export function ReferralTab({ userId, locale }: ReferralTabProps) {
   const { t } = useTranslation(locale);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const [referralInfo, setReferralInfo] = useState<{
     referralCode: string;
     referralLink: string;
     totalReferrals: number;
     activeReferrals: number;
   } | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
-  const loadingRef = useRef(false);
+  
+  // Используем useRef для отслеживания состояния загрузки и предотвращения циклов
+  const dataLoaded = useRef(false);
   
   // Базовая функция для генерации ссылки на клиенте (резервный вариант)
   const generateLocalReferralLink = (code: string) => {
@@ -36,20 +38,35 @@ export function ReferralTab({ userId, locale }: ReferralTabProps) {
   // Загружаем информацию о рефералах
   useEffect(() => {
     const loadReferralInfo = async () => {
-      // Если уже загружаем или загрузили, не делаем ничего
-      if (loadingRef.current) return;
+      // Проверяем, не загрузили ли мы уже данные
+      if (dataLoaded.current) {
+        return;
+      }
       
-      loadingRef.current = true;
       try {
         console.log('Starting to load referral info for user:', userId);
         setLoading(true);
         
-        const result = await getUserReferralInfo(userId);
-        console.log('Received result from getUserReferralInfo:', result);
+        if (!userId) {
+          console.error('Invalid userId provided');
+          setError('Invalid user ID');
+          setLoading(false);
+          return;
+        }
+        
+        let result;
+        try {
+          result = await getUserReferralInfo(userId);
+          console.log('Received result from getUserReferralInfo:', result);
+        } catch (serviceError) {
+          console.error('Error calling getUserReferralInfo:', serviceError);
+          throw serviceError;
+        }
         
         if (result.error) {
-          console.error("Error loading referral info:", result.error);
+          console.error("Error in getUserReferralInfo result:", result.error);
           setError(t('referral.errorLoading'));
+          setLoading(false);
           return;
         }
         
@@ -58,13 +75,16 @@ export function ReferralTab({ userId, locale }: ReferralTabProps) {
           (result.referralCode ? generateLocalReferralLink(result.referralCode) : '');
         
         setReferralInfo({
-          referralCode: result.referralCode ?? '',
+          referralCode: result.referralCode || '',
           referralLink: finalReferralLink,
-          totalReferrals: result.totalReferrals ?? 0,
-          activeReferrals: result.activeReferrals ?? 0,
+          totalReferrals: typeof result.totalReferrals === 'number' ? result.totalReferrals : 0,
+          activeReferrals: typeof result.activeReferrals === 'number' ? result.activeReferrals : 0,
         });
         
         console.log('Successfully set referral info state');
+        
+        // Отмечаем, что данные загружены
+        dataLoaded.current = true;
         
       } catch (err) {
         console.error("Exception loading referral info:", err);
@@ -72,11 +92,10 @@ export function ReferralTab({ userId, locale }: ReferralTabProps) {
       } finally {
         setLoading(false);
         console.log('Loading state set to false');
-        loadingRef.current = false;
       }
     };
     
-    if (userId && !loadingRef.current) {
+    if (userId && !dataLoaded.current) {
       loadReferralInfo();
     }
   }, [userId, t, locale]);
