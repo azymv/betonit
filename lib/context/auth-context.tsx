@@ -114,9 +114,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Определяем локаль для редиректа
       const locale = userData?.language || 'en';
       
-      console.log('Sign up userData:', userData);
-      console.log('Referral code in signUp:', userData?.referralCode);
-      
       // Если указан реферальный код, получаем ID реферера
       let referrerId = null;
       
@@ -134,58 +131,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (error) {
             console.error('Error looking up referrer:', error);
           } else if (data) {
-            referrerId = data.id;
+            referrerId = data.id; // ID пользователя, а не реферальный код
             console.log('Found referrer ID:', referrerId);
-            // Save referrer ID to sessionStorage for use after email confirmation
-            if (typeof window !== 'undefined') {
-              sessionStorage.setItem('referrerId', data.id);
-              console.log('Saved referrerId to sessionStorage:', data.id);
-            }
-          } else {
-            console.log('No referrer found for code:', userData.referralCode);
           }
         } catch (err) {
           console.error('Exception looking up referrer:', err);
         }
       }
       
-      // Добавляем реферальный код в URL параметры
-      const referralCode = userData?.referralCode;
-      const redirectUrl = `${siteUrl}/auth/callback?redirect_to=/${locale}/profile${referralCode ? `&ref_id=${referralCode}` : ''}`;
-      console.log('Redirect URL with referral params:', redirectUrl);
-      
-      // Добавляем реферальный код и ID реферера в метаданные пользователя
+      // В метаданные передаем ID реферера, а не реферальный код
       const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: redirectUrl,
+          emailRedirectTo: `${siteUrl}/auth/callback?redirect_to=/${locale}/profile`,
           data: {
             username: userData?.username,
             full_name: userData?.full_name,
             language: userData?.language || 'en',
-            referral_code: userData?.referralCode,
-            referred_by: referrerId
+            referred_by: referrerId // Передаем ID, а не код
           }
         },
       });
       
-      console.log('Sign up response error:', error);
-      
       if (error) {
-        console.error('Sign up error:', error);
         return { error };
-      }
-      
-      // If signup successful and we have a referral code, save it to sessionStorage
-      if (referralCode && typeof window !== 'undefined') {
-        sessionStorage.setItem('referralCode', referralCode);
-        console.log('Saved referralCode to sessionStorage:', referralCode);
       }
       
       return { error: null };
     } catch (error) {
-      console.error('Exception during sign up:', error);
       return { error: error as Error };
     }
   };
