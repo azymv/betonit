@@ -73,9 +73,52 @@ export default function HomePage() {
         </video>
         
         {/* Затемнение для лучшей читаемости текста */}
-        <div className="absolute inset-0 bg-black bg-opacity-40"></div>
+        <div className="absolute inset-0 bg-black bg-opacity-10"></div>
         
-        <div className="container mx-auto px-4 text-center relative z-10">
+        {/* Слой с изображением монет для авторизованных пользователей */}
+        {user && (
+          <div 
+            className="absolute inset-0 z-[1] flex items-center justify-center"
+            style={{
+              backgroundColor: "rgba(0, 0, 0, 0.35)"
+            }}
+          >
+            <div
+              className="w-[95%] max-w-[1000px] h-[95%] max-h-[800px]"
+              style={{
+                backgroundImage: "url('/images/ui/coins.png')",
+                backgroundSize: "contain",
+                backgroundPosition: "center",
+                backgroundRepeat: "no-repeat"
+              }}
+            ></div>
+          </div>
+        )}
+        
+        {/* Слой с изображением ворот для неавторизованных пользователей */}
+        {!user && (
+          <div 
+            className="absolute inset-0 z-[1] flex items-center justify-center"
+            style={{
+              backgroundColor: "rgba(0, 0, 0, 0.5)"
+            }}
+          >
+            <div
+              className="w-[95%] max-w-[1000px] h-[95%] max-h-[800px] relative"
+              style={{
+                backgroundImage: "url('/images/ui/gates.png')",
+                backgroundSize: "contain",
+                backgroundPosition: "center",
+                backgroundRepeat: "no-repeat"
+              }}
+            >
+              {/* Дополнительное затемнение для изображения ворот */}
+              <div className="absolute inset-0 bg-black bg-opacity-20"></div>
+            </div>
+          </div>
+        )}
+        
+        <div className="container mx-auto px-4 text-center relative z-20">
           <h1 className="text-4xl md:text-5xl font-normal mb-6">
             {user ? (locale === 'en' ? "The journey begins." : "Твой путь начинается здесь.") : t('home.title')}
           </h1>

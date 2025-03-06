@@ -339,6 +339,47 @@ export default function ProfilePage() {
             </CardContent>
           </Card>
           
+          {/* Статистика ставок */}
+          {betStats.total > 0 && (
+            <Card className="mt-6">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5" />
+                  {t('profile.stats.title')}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <p className="text-2xl font-bold">{betStats.total}</p>
+                    <p className="text-sm text-muted-foreground">{t('profile.stats.total')}</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-green-600">{betStats.won}</p>
+                    <p className="text-sm text-muted-foreground">{t('profile.stats.won')}</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-red-600">{betStats.lost}</p>
+                    <p className="text-sm text-muted-foreground">{t('profile.stats.lost')}</p>
+                  </div>
+                </div>
+                
+                <div className="mt-4">
+                  <p className="text-sm text-muted-foreground mb-1">{t('profile.stats.accuracy')}</p>
+                  <div className="w-full bg-slate-200 h-2 rounded-full">
+                    <div
+                      className="bg-green-500 h-2 rounded-full"
+                      style={{ width: `${betStats.winRate}%` }}
+                    />
+                  </div>
+                  <p className="text-sm mt-1">
+                    {Math.round(betStats.winRate)}%
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          
           {/* Реферальная программа */}
           <div className="mt-6">
             <div className="relative min-h-[14rem] rounded-[1.25rem] border-[0.75px] border-border p-2 md:rounded-[1.5rem] md:p-3 overflow-hidden">
@@ -418,47 +459,6 @@ export default function ProfilePage() {
               </div>
             </div>
           </div>
-          
-          {/* Статистика ставок */}
-          {betStats.total > 0 && (
-            <Card className="mt-6">
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2">
-                  <BarChart3 className="h-5 w-5" />
-                  {t('profile.stats.title')}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-3 gap-4 text-center">
-                  <div>
-                    <p className="text-2xl font-bold">{betStats.total}</p>
-                    <p className="text-sm text-muted-foreground">{t('profile.stats.total')}</p>
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-green-600">{betStats.won}</p>
-                    <p className="text-sm text-muted-foreground">{t('profile.stats.won')}</p>
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-red-600">{betStats.lost}</p>
-                    <p className="text-sm text-muted-foreground">{t('profile.stats.lost')}</p>
-                  </div>
-                </div>
-                
-                <div className="mt-4">
-                  <p className="text-sm text-muted-foreground mb-1">{t('profile.stats.accuracy')}</p>
-                  <div className="w-full bg-slate-200 h-2 rounded-full">
-                    <div
-                      className="bg-green-500 h-2 rounded-full"
-                      style={{ width: `${betStats.winRate}%` }}
-                    />
-                  </div>
-                  <p className="text-sm mt-1">
-                    {Math.round(betStats.winRate)}%
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
         </div>
         
         {/* Правая колонка с вкладками */}
