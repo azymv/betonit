@@ -138,8 +138,13 @@ export function Header({ locale }: { locale: string }) {
                         : user.email ? user.email[0].toUpperCase() : "U"}
                     </AvatarFallback>
                   </Avatar>
-                  <span className="text-sm font-medium">
+                  <span className="text-sm font-medium hidden md:inline">
                     {user.user_metadata?.username || user.email?.split('@')[0] || "User"}
+                  </span>
+                  <span className="text-sm font-medium md:hidden">
+                    {user.user_metadata?.username 
+                      ? user.user_metadata.username[0].toUpperCase() 
+                      : user.email ? user.email[0].toUpperCase() : "U"}
                   </span>
                   <ChevronDown className="h-4 w-4" />
                 </div>
@@ -175,7 +180,7 @@ export function Header({ locale }: { locale: string }) {
                   {t("nav.signin")}
                 </Link>
               </Button>
-              <Button className="bg-white text-black hover:bg-secondary hover:text-black" asChild>
+              <Button className="bg-secondary text-black hover:bg-primary hover:text-white" asChild>
                 <Link href={`/${locale}/auth/signup`}>
                   {t("nav.signup")}
                 </Link>

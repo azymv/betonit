@@ -56,14 +56,25 @@ export default function HomePage() {
     <div>
       {/* Hero секция */}
       <section 
-        className="hero-section text-white py-32 relative"
-        style={{
-          backgroundImage: user ? "url('/images/ui/hero2.jpg')" : "url('/images/ui/hero3.png')",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundRepeat: "no-repeat"
-        }}
+        className="hero-section text-white py-32 relative overflow-hidden"
       >
+        {/* Видео фон */}
+        <video 
+          className="absolute inset-0 w-full h-full object-cover"
+          autoPlay 
+          muted 
+          loop 
+          playsInline
+          style={{
+            objectPosition: "center 20%"
+          }}
+        >
+          <source src="/videos/wave.mp4" type="video/mp4" />
+        </video>
+        
+        {/* Затемнение для лучшей читаемости текста */}
+        <div className="absolute inset-0 bg-black bg-opacity-40"></div>
+        
         <div className="container mx-auto px-4 text-center relative z-10">
           <h1 className="text-4xl md:text-5xl font-normal mb-6">
             {user ? (locale === 'en' ? "The journey begins." : "Твой путь начинается здесь.") : t('home.title')}
@@ -140,44 +151,42 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Как это работает */}
-      <HowItWorksSection 
-        title={t('home.howItWorks')}
-        steps={[
-          {
-            number: 1,
-            title: t('home.step1_title'),
-            description: t('home.step1_description')
-          },
-          {
-            number: 2,
-            title: t('home.step2_title'),
-            description: t('home.step2_description')
-          },
-          {
-            number: 3,
-            title: t('home.step3_title'),
-            description: t('home.step3_description')
-          }
-        ]}
-      />
+      {/* Как это работает - только для неавторизованных пользователей */}
+      {!user && (
+        <HowItWorksSection 
+          title={t('home.howItWorks')}
+          steps={[
+            {
+              number: 1,
+              title: t('home.step1_title'),
+              description: t('home.step1_description')
+            },
+            {
+              number: 2,
+              title: t('home.step2_title'),
+              description: t('home.step2_description')
+            },
+            {
+              number: 3,
+              title: t('home.step3_title'),
+              description: t('home.step3_description')
+            }
+          ]}
+        />
+      )}
 
       {/* Видео секция - только для неавторизованных пользователей */}
       {!user && (
-        <section className="relative h-[500px] overflow-hidden hero-section">
-          {/* Видео фон */}
-          <video 
-            className="absolute inset-0 w-full h-full object-cover"
-            autoPlay 
-            muted 
-            loop 
-            playsInline
-          >
-            <source src="/videos/wave.mp4" type="video/mp4" />
-          </video>
-          
-          {/* Затемнение для лучшей читаемости текста */}
-          <div className="absolute inset-0 bg-black bg-opacity-40"></div>
+        <section className="relative h-[500px] overflow-hidden hero-section"
+          style={{
+            backgroundImage: user ? "url('/images/ui/hero2.jpg')" : "url('/images/ui/hero3.png')",
+            backgroundSize: "cover",
+            backgroundPosition: "center 20%",
+            backgroundRepeat: "no-repeat"
+          }}
+        >
+          {/* Минимальное затемнение для лучшей читаемости текста */}
+          <div className="absolute inset-0 bg-black bg-opacity-10"></div>
           
           {/* Контент */}
           <div className="container mx-auto px-4 h-full flex flex-col items-center justify-center relative z-10">
