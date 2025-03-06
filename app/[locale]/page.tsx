@@ -58,7 +58,7 @@ export default function HomePage() {
       <section 
         className="hero-section text-white py-32 relative"
         style={{
-          backgroundImage: "url('/images/ui/hero.jpg')",
+          backgroundImage: user ? "url('/images/ui/hero2.jpg')" : "url('/images/ui/hero3.png')",
           backgroundSize: "cover",
           backgroundPosition: "center",
           backgroundRepeat: "no-repeat"
@@ -66,11 +66,13 @@ export default function HomePage() {
       >
         <div className="container mx-auto px-4 text-center relative z-10">
           <h1 className="text-4xl md:text-5xl font-normal mb-6">
-            {t('home.title')}
+            {user ? (locale === 'en' ? "The journey begins." : "Твой путь начинается здесь.") : t('home.title')}
           </h1>
-          <p className="text-xl mb-8 max-w-2xl mx-auto">
-            {t('home.subtitle')}
-          </p>
+          {!user && (
+            <p className="text-xl mb-8 max-w-2xl mx-auto">
+              {t('home.subtitle')}
+            </p>
+          )}
           {user ? (
             <Link href={`/${locale}/events`}>
               <RainbowButton>
@@ -159,6 +161,42 @@ export default function HomePage() {
           }
         ]}
       />
+
+      {/* Видео секция - только для неавторизованных пользователей */}
+      {!user && (
+        <section className="relative h-[500px] overflow-hidden hero-section">
+          {/* Видео фон */}
+          <video 
+            className="absolute inset-0 w-full h-full object-cover"
+            autoPlay 
+            muted 
+            loop 
+            playsInline
+          >
+            <source src="/videos/wave.mp4" type="video/mp4" />
+          </video>
+          
+          {/* Затемнение для лучшей читаемости текста */}
+          <div className="absolute inset-0 bg-black bg-opacity-40"></div>
+          
+          {/* Контент */}
+          <div className="container mx-auto px-4 h-full flex flex-col items-center justify-center relative z-10">
+            <h1 className="text-4xl md:text-5xl font-normal mb-8 text-white text-center">
+              {locale === 'en' ? 'Join a new generation of investors.' : 'Присоединяйся к новому поколению инвесторов.'}
+            </h1>
+            
+            <Link href={`/${locale}/auth/signup`}>
+              <Button 
+                variant="secondary" 
+                size="lg" 
+                className="text-black font-medium px-8 py-6 text-lg"
+              >
+                {locale === 'en' ? 'Sign up now' : 'Пройти регистрацию'}
+              </Button>
+            </Link>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

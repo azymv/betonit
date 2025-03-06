@@ -473,7 +473,7 @@ export default function ProfilePage() {
                   </CardTitle>
                   <TabsList>
                     <TabsTrigger value="bets">
-                      {t('profile.bets')}
+                      {t('profile.myBets')}
                     </TabsTrigger>
                     <TabsTrigger value="transactions">
                       {t('profile.transactions')}
