@@ -19,6 +19,7 @@ import Link from 'next/link';
 import { placeBet } from '@/lib/actions/bet-actions';
 import { Event } from '@/lib/types/event';
 import { User } from '@supabase/supabase-js';
+import { RainbowButton } from "@/components/ui/rainbow-button";
 
 // Define a type for the debug information
 interface DebugInfo {
@@ -526,7 +527,7 @@ export default function PlaceBetPage() {
               </Link>
             </Button>
           ) : (
-            <Button 
+            <RainbowButton 
               className="w-full" 
               onClick={handlePlaceBet}
               disabled={isSubmitting || amount < MIN_BET || amount > MAX_BET || amount > balance}
@@ -537,9 +538,9 @@ export default function PlaceBetPage() {
                   {t('common.processing')}
                 </>
               ) : (
-                t('events.placeBetButton')
+                locale === 'en' ? 'Make a prediction' : 'Сделать предсказание'
               )}
-            </Button>
+            </RainbowButton>
           )}
         </CardFooter>
       </Card>
