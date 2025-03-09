@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useTranslation, locales } from "@/lib/i18n-config";
-import { Home, Trophy, Calendar, LogOut, ChevronDown, Menu } from "lucide-react";
+import { Home, Trophy, Calendar, LogOut, ChevronDown, Menu, Globe } from "lucide-react";
 import { useAuth } from "@/lib/context/auth-context";
 import { useState } from "react";
 
@@ -88,39 +88,12 @@ export function Header({ locale }: { locale: string }) {
           </nav>
         </div>
 
-        {/* Центральная кнопка Sign Up для мобильной версии */}
-        <div className="md:hidden flex-1 flex justify-center">
-          {!isLoading && !user && (
-            <Button className="bg-secondary text-black hover:bg-primary hover:text-white" asChild>
-              <Link href={`/${locale}/auth/signup`}>
-                {t("nav.signup")}
-              </Link>
-            </Button>
-          )}
+        {/* Центральная кнопка Sign Up для мобильной версии - убираем */}
+        <div className="md:hidden flex-1">
+          {/* Пустой div для сохранения flex-структуры */}
         </div>
 
         <div className="flex items-center space-x-4">
-          {/* Переключатель языка - только для десктопа */}
-          <div className="hidden md:block">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="text-white hover:text-secondary hover:bg-transparent">
-                  {locale === "en" ? "🇺🇸 EN" : "🇷🇺 RU"}
-                  <ChevronDown className="ml-1 h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="bg-gray-900 text-white border-gray-700">
-                {locales.map((l) => (
-                  <DropdownMenuItem key={l} asChild className="hover:bg-gray-800 hover:text-primary focus:text-primary">
-                    <Link href={getLocalePath(l)}>
-                      {l === "en" ? "🇺🇸 English" : "🇷🇺 Русский"}
-                    </Link>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-
           {/* Имя пользователя для мобильной версии */}
           {!isLoading && user && (
             <Link 
@@ -133,6 +106,37 @@ export function Header({ locale }: { locale: string }) {
               </span>
             </Link>
           )}
+
+          {/* Sign Up кнопка для мобильной версии */}
+          {!isLoading && !user && (
+            <Button className="md:hidden bg-secondary text-black hover:bg-primary hover:text-white" asChild>
+              <Link href={`/${locale}/auth/signup`}>
+                {t("nav.signup")}
+              </Link>
+            </Button>
+          )}
+
+          {/* Переключатель языка - только для десктопа */}
+          <div className="hidden md:block">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="text-white hover:text-secondary hover:bg-transparent">
+                  <Globe className="h-4 w-4 mr-1" />
+                  {locale === "en" ? "EN" : "RU"}
+                  <ChevronDown className="ml-1 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-gray-900 text-white border-gray-700">
+                {locales.map((l) => (
+                  <DropdownMenuItem key={l} asChild className="hover:bg-gray-800 hover:text-primary focus:text-primary">
+                    <Link href={getLocalePath(l)}>
+                      {l === "en" ? "EN" : "RU"}
+                    </Link>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
 
           {isLoading ? (
             // Показываем заглушку во время загрузки
@@ -231,7 +235,7 @@ export function Header({ locale }: { locale: string }) {
                               className={`px-4 py-2 rounded-md ${locale === l ? 'bg-gray-800 text-white' : 'text-gray-300'}`}
                               onClick={handleNavigation}
                             >
-                              {l === "en" ? "🇺🇸 English" : "🇷🇺 Русский"}
+                              {l === "en" ? "EN" : "RU"}
                             </Link>
                           ))}
                         </div>
