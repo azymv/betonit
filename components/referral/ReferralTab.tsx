@@ -148,6 +148,11 @@ export function ReferralTab({ userId, locale }: ReferralTabProps) {
   
   return (
     <div className="space-y-6">
+      {/* Описание реферальной программы */}
+      <div className="bg-slate-50 p-4 rounded-lg mb-6">
+        <p className="text-base">{t('referral.description')}</p>
+      </div>
+      
       {/* Реферальная ссылка */}
       <div className="mb-4">
         <h3 className="text-lg font-medium mb-2">{t('referral.yourCode')}</h3>
@@ -188,16 +193,6 @@ export function ReferralTab({ userId, locale }: ReferralTabProps) {
           <p className="text-2xl font-bold">{referralInfo.activeReferrals}</p>
           <p className="text-sm text-muted-foreground">{t('referral.stats.active')}</p>
         </div>
-      </div>
-      
-      {/* Информация о программе */}
-      <div className="bg-slate-50 p-4 rounded-lg">
-        <h3 className="font-semibold mb-2">{t('referral.howItWorks')}</h3>
-        <ol className="list-decimal list-inside space-y-1 text-sm pl-2">
-          <li>{t('referral.step1')}</li>
-          <li>{t('referral.step2')}</li>
-          <li>{t('referral.step3')}</li>
-        </ol>
       </div>
     </div>
   );

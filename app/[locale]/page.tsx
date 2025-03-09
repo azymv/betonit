@@ -8,12 +8,46 @@ import { useTranslation } from "@/lib/i18n-config";
 import { RainbowButton } from "@/components/ui/rainbow-button";
 import { HowItWorksSection } from "@/components/sections/how-it-works";
 import { useAuth } from "@/lib/context/auth-context";
+import { useEffect, useState, useRef } from "react";
 
 export default function HomePage() {
   const params = useParams();
   const locale = params.locale as string;
   const { t } = useTranslation(locale);
   const { user } = useAuth();
+  
+  // Состояние для параллакс-эффекта
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const coinsRef = useRef<HTMLDivElement>(null);
+  const gatesRef = useRef<HTMLDivElement>(null);
+  
+  // Обработчик движения мыши для параллакс-эффекта
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      // Вычисляем положение мыши относительно центра экрана
+      const x = (e.clientX / window.innerWidth - 0.5) * 20; // Смещение по X
+      const y = (e.clientY / window.innerHeight - 0.5) * 20; // Смещение по Y
+      
+      setMousePosition({ x, y });
+    };
+    
+    window.addEventListener('mousemove', handleMouseMove);
+    
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+    };
+  }, []);
+  
+  // Применяем параллакс-эффект к изображениям
+  useEffect(() => {
+    if (coinsRef.current) {
+      coinsRef.current.style.transform = `translate(${mousePosition.x * -1}px, ${mousePosition.y * -1}px)`;
+    }
+    
+    if (gatesRef.current) {
+      gatesRef.current.style.transform = `translate(${mousePosition.x * -1}px, ${mousePosition.y * -1}px)`;
+    }
+  }, [mousePosition]);
 
   const featuredEvents = [
     {
@@ -84,7 +118,8 @@ export default function HomePage() {
             }}
           >
             <div
-              className="w-[95%] max-w-[1000px] h-[95%] max-h-[800px]"
+              ref={coinsRef}
+              className="w-[95%] max-w-[1000px] h-[95%] max-h-[800px] transition-transform duration-200 ease-out"
               style={{
                 backgroundImage: "url('/images/ui/coins.png')",
                 backgroundSize: "contain",
@@ -104,7 +139,8 @@ export default function HomePage() {
             }}
           >
             <div
-              className="w-[95%] max-w-[1000px] h-[95%] max-h-[800px] relative"
+              ref={gatesRef}
+              className="w-[95%] max-w-[1000px] h-[95%] max-h-[800px] relative transition-transform duration-200 ease-out"
               style={{
                 backgroundImage: "url('/images/ui/gates.png')",
                 backgroundSize: "contain",
