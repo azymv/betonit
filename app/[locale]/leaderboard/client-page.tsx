@@ -20,8 +20,8 @@ interface ClientLeaderboardProps {
     total_users: number;
   } | null;
   userData?: {
-    username?: string;
-    avatar_url?: string;
+    username?: string | null;
+    avatar_url?: string | null;
   } | null;
   locale: string;
   translations: Record<string, string>;
@@ -41,7 +41,18 @@ export default function ClientLeaderboard({
   const currentData = activeTab === 'all' ? allTimeData : monthlyData;
   
   // Helper translation function that uses the translations record
-  const t = (key: string) => translations[key] || key;
+  const t = (key: string, params?: Record<string, string | number>) => {
+    let result = translations[key] || key;
+    
+    // Replace parameters in the string if they exist
+    if (params) {
+      Object.entries(params).forEach(([paramKey, paramValue]) => {
+        result = result.replace(new RegExp(`{${paramKey}}`, 'g'), String(paramValue));
+      });
+    }
+    
+    return result;
+  };
   
   return (
     <div className="space-y-6">

@@ -5,7 +5,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 type LeaderboardFiltersProps = {
   activeTab: 'all' | 'monthly';
   onTabChange: (tab: 'all' | 'monthly') => void;
-  t: (key: string) => string;
+  t: (key: string, params?: Record<string, string | number>) => string;
 };
 
 export default function LeaderboardFilters({

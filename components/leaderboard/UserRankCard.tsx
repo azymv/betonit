@@ -5,13 +5,13 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
 type UserRankCardProps = {
-  username?: string;
-  avatarUrl?: string;
+  username?: string | null;
+  avatarUrl?: string | null;
   rank: number;
   score: number;
   totalUsers: number;
   locale: string;
-  t: (key: string) => string;
+  t: (key: string, params?: Record<string, string | number>) => string;
 };
 
 export default function UserRankCard({
@@ -24,7 +24,7 @@ export default function UserRankCard({
   t
 }: UserRankCardProps) {
   // Генерирует инициалы из имени пользователя
-  const getInitials = (username?: string) => {
+  const getInitials = (username?: string | null) => {
     if (!username) return '?';
     return username.substring(0, 2).toUpperCase();
   };
@@ -32,14 +32,6 @@ export default function UserRankCard({
   // Форматирует число с разделителями тысяч
   const formatNumber = (num: number) => {
     return new Intl.NumberFormat(locale).format(num);
-  };
-  
-  // Функция для форматирования строк с параметрами
-  const formatString = (str: string, params: Record<string, string | number>) => {
-    return Object.entries(params).reduce(
-      (result, [key, value]) => result.replace(`{${key}}`, String(value)),
-      str
-    );
   };
   
   // Определяет текстовое описание ранга
@@ -77,7 +69,7 @@ export default function UserRankCard({
           <div className="text-right">
             <div className="text-2xl font-bold">{formatNumber(rank)}</div>
             <div className="text-sm text-muted-foreground">
-              {formatString(t('leaderboard.outOf'), { total: formatNumber(totalUsers) })}
+              {t('leaderboard.outOf', { total: formatNumber(totalUsers) })}
             </div>
           </div>
         </div>

@@ -35,6 +35,15 @@ export default async function LeaderboardPage({ params }: { params: { locale: st
     'leaderboard.rules.winBetsDescription': getTranslation(params.locale, 'leaderboard.rules.winBetsDescription'),
     'leaderboard.rules.referFriends': getTranslation(params.locale, 'leaderboard.rules.referFriends'),
     'leaderboard.rules.referFriendsDescription': getTranslation(params.locale, 'leaderboard.rules.referFriendsDescription'),
+    'leaderboard.rankLabels.first': getTranslation(params.locale, 'leaderboard.rankLabels.first'),
+    'leaderboard.rankLabels.top3': getTranslation(params.locale, 'leaderboard.rankLabels.top3'),
+    'leaderboard.rankLabels.top10': getTranslation(params.locale, 'leaderboard.rankLabels.top10'),
+    'leaderboard.rankLabels.top1percent': getTranslation(params.locale, 'leaderboard.rankLabels.top1percent'),
+    'leaderboard.rankLabels.top5percent': getTranslation(params.locale, 'leaderboard.rankLabels.top5percent'),
+    'leaderboard.rankLabels.top10percent': getTranslation(params.locale, 'leaderboard.rankLabels.top10percent'),
+    'leaderboard.rankLabels.top25percent': getTranslation(params.locale, 'leaderboard.rankLabels.top25percent'),
+    'leaderboard.rankLabels.top50percent': getTranslation(params.locale, 'leaderboard.rankLabels.top50percent'),
+    'leaderboard.rankLabels.other': getTranslation(params.locale, 'leaderboard.rankLabels.other'),
     'common.loading': getTranslation(params.locale, 'common.loading'),
   };
   
