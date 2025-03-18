@@ -2,7 +2,7 @@
 const nextConfig = {
   reactStrictMode: true,
   images: {
-    domains: ['localhost', 'https://swhvhazwszytmveskbcq.supabase.co'],
+    domains: ['localhost', 'swhvhazwszytmveskbcq.supabase.co', 'betonit-sepia.vercel.app'],
   },
   experimental: {
     serverActions: {

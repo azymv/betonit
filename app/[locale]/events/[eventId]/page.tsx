@@ -15,6 +15,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ArrowLeft, CalendarIcon, Clock, AlertCircle } from 'lucide-react';
 import { Event } from '@/lib/types/event';
 import { Bet } from '@/lib/types/event';
+import Image from 'next/image';
 
 export default function EventPage() {
   const params = useParams();
@@ -130,7 +131,7 @@ const getEventStats = () => {
           <div className="w-full md:w-2/3">
             <Skeleton className="h-6 w-24 mb-2" />
             <Skeleton className="h-10 w-full mb-4" />
-            <Skeleton className="h-56 w-full rounded-lg mb-6" />
+            <Skeleton className="h-56 w-full rounded-lg mb-6 relative overflow-hidden" />
             <Skeleton className="h-6 w-full mb-3" />
             <Skeleton className="h-6 w-full mb-3" />
             <Skeleton className="h-6 w-3/4 mb-8" />
@@ -197,8 +198,31 @@ const getEventStats = () => {
           </div>
           <h1 className="text-3xl font-bold mb-4">{event.title}</h1>
           
-          <div className="bg-slate-200 h-56 w-full rounded-lg mb-6">
-            {/* Здесь будет изображение события */}
+          <div className="relative bg-slate-200 h-56 w-full rounded-lg mb-6 overflow-hidden">
+            {event.image_url ? (
+              <Image 
+                src={event.image_url.startsWith('http') 
+                  ? event.image_url 
+                  : event.image_url.startsWith('/') 
+                    ? event.image_url 
+                    : `/${event.image_url}`}
+                alt={event.title}
+                fill
+                style={{ objectFit: 'cover' }}
+                onError={(e) => {
+                  // If the image fails to load, replace with the placeholder
+                  const target = e.target as HTMLImageElement;
+                  target.src = '/images/events/placeholder.jpg';
+                }}
+              />
+            ) : (
+              <Image 
+                src="/images/events/placeholder.jpg" 
+                alt="Placeholder image"
+                fill
+                style={{ objectFit: 'cover' }}
+              />
+            )}
           </div>
           
           <div className="prose max-w-none mb-8">
