@@ -6,196 +6,107 @@ import { createUserProfile } from '@/lib/actions/auth-actions';
 import { defaultLocale } from '@/lib/i18n-config';
 
 export async function GET(request: NextRequest) {
-  const requestUrl = new URL(request.url);
-  console.log("Auth callback URL:", requestUrl.toString());
-  
-  // Проверяем наличие кода или ошибки в параметрах
-  const code = requestUrl.searchParams.get('code');
-  const error = requestUrl.searchParams.get('error');
-  const errorCode = requestUrl.searchParams.get('error_code');
-  const errorDesc = requestUrl.searchParams.get('error_description');
-  
-  // Получаем redirect_to из параметров URL для перенаправления после авторизации
-  const redirectTo = requestUrl.searchParams.get('redirect_to');
-  console.log("Redirect destination:", redirectTo || "Not specified");
-  
-  // Получаем реферальный код из параметров URL
-  const ref = requestUrl.searchParams.get('ref');
-  const refId = requestUrl.searchParams.get('ref_id');
-  const locale = requestUrl.searchParams.get('locale') || defaultLocale;
-  
-  // Флаг для определения, является ли аутентификация через OAuth
-  let isOAuthFlow = false;
-  
-  if (ref) {
-    console.log("Got referral code from URL:", ref);
-  } else if (refId) {
-    console.log("Got referral ID from URL:", refId);
-  } else {
-    console.log("No referral code or ID found in URL params");
-  }
-  
-  // Логируем полный URL и все параметры для отладки
-  console.log("Full callback URL:", requestUrl.toString());
-  console.log("All URL search params:", Object.fromEntries(requestUrl.searchParams.entries()));
-  
-  // Обрабатываем ошибки аутентификации
-  if (error || errorCode || errorDesc) {
-    console.error("Auth callback error:", { error, errorCode, errorDesc });
-    return NextResponse.redirect(new URL(`/${locale}/auth/error`, requestUrl.origin));
-  }
-  
-  // Обрабатываем обмен кода на сессию
-  if (code) {
-    try {
-      console.log("Processing auth code");
-      const supabase = createRouteHandlerClient({ cookies });
+  try {
+    const requestUrl = new URL(request.url);
+    console.log("AUTH CALLBACK HANDLER TRIGGERED:", requestUrl.toString());
+    
+    // Get code and error params
+    const code = requestUrl.searchParams.get('code');
+    const error = requestUrl.searchParams.get('error');
+    
+    // Get additional context params
+    const redirectTo = requestUrl.searchParams.get('redirect_to') || '/';
+    const locale = requestUrl.searchParams.get('locale') || defaultLocale;
+    
+    // Log complete request context
+    console.log("Auth callback params:", {
+      code: code ? "present" : "absent",
+      error: error || "none",
+      redirectTo,
+      locale,
+      allParams: Object.fromEntries(requestUrl.searchParams.entries())
+    });
+    
+    // Check for authentication errors
+    if (error) {
+      console.error("Auth error:", error);
+      return NextResponse.redirect(new URL(`/${locale}/auth/error`, requestUrl.origin));
+    }
+    
+    // Initialize Supabase client
+    const supabase = createRouteHandlerClient({ cookies });
+    
+    // If we have a code, exchange it for a session
+    if (code) {
+      console.log("Exchanging code for session...");
       
-      // Обмениваем код на сессию
       const { data, error } = await supabase.auth.exchangeCodeForSession(code);
       
       if (error) {
-        console.error("Error exchanging code for session:", error);
+        console.error("Session exchange error:", error);
         return NextResponse.redirect(new URL(`/${locale}/auth/error`, requestUrl.origin));
       }
       
-      if (data.user) {
-        console.log("User authenticated:", data.user.id);
-        console.log("User metadata:", data.user.user_metadata);
-        console.log("Authentication provider:", data.user.app_metadata?.provider);
+      if (!data.user) {
+        console.error("No user returned from session exchange");
+        return NextResponse.redirect(new URL(`/${locale}/auth/error`, requestUrl.origin));
+      }
+      
+      // Log successful authentication
+      console.log("Authentication successful:", {
+        user_id: data.user.id,
+        email: data.user.email,
+        provider: data.user.app_metadata?.provider
+      });
+      
+      // Determine if this is OAuth flow
+      const isOAuth = data.user.app_metadata?.provider !== 'email';
+      
+      if (isOAuth) {
+        console.log("Processing OAuth login (Google, etc)");
         
-        // Определяем, использовал ли пользователь провайдер OAuth
-        // Измененная логика определения OAuth аутентификации
-        isOAuthFlow = data.user.app_metadata?.provider !== undefined && 
-                      data.user.app_metadata.provider !== 'email';
-        
-        console.log("Is OAuth authentication:", isOAuthFlow);
-        
-        // Добавляем более подробное логирование данных пользователя
-        console.log("Full user data:", {
-          id: data.user.id,
-          email: data.user.email,
-          app_metadata: data.user.app_metadata,
-          user_metadata: data.user.user_metadata,
-          provider: data.user.app_metadata?.provider,
-          isOAuthFlow
-        });
-        
-        // Проверяем, существует ли уже профиль пользователя в нашей базе
-        const { data: existingProfile, error: profileError } = await supabase
-          .from('users')
-          .select('id, username, language')
-          .eq('id', data.user.id)
-          .single();
-        
-        // PGRST116 означает, что запись не найдена
-        const isNewUser = profileError && profileError.code === 'PGRST116';
-        
-        if (profileError && profileError.code !== 'PGRST116') {
-          console.error("Error checking user profile:", profileError);
-        }
-        
-        // Упрощенное условие: создаем или обновляем профиль для новых пользователей или OAuth
-        if (isNewUser || isOAuthFlow) {
-          // Получаем информацию о реферере из метаданных или URL
-          let referredBy = data.user.user_metadata?.referred_by;
-          
-          // Если в URL указан реферальный код, ищем ID реферера
-          if (ref && !referredBy) {
-            try {
-              const { data: referrerData, error: referrerError } = await supabase
-                .from('users')
-                .select('id')
-                .eq('referral_code', ref)
-                .single();
-                
-              if (referrerError) {
-                console.error("Error looking up referrer by code:", referrerError);
-              } else if (referrerData) {
-                referredBy = referrerData.id;
-                console.log("Found referrer ID by code:", referredBy);
-              }
-            } catch (refLookupError) {
-              console.error("Exception looking up referrer:", refLookupError);
-            }
-          }
-          
-          // Извлекаем имя пользователя и полное имя из данных провайдера
-          const providerName = data.user.user_metadata?.name 
-                            || data.user.user_metadata?.full_name 
-                            || null;
-          
-          // Формируем данные пользователя из метаданных или OAuth профиля
+        // Force profile creation for OAuth users
+        try {
+          // Prepare user data from OAuth profile
           const userData = {
-            email: data.user.email as string,
-            username: data.user.user_metadata?.username || 
-                     (providerName ? 
-                      providerName.replace(/\s+/g, '_').toLowerCase() : 
-                      data.user.email?.split('@')[0]),
-            full_name: data.user.user_metadata?.full_name || 
-                      providerName,
-            language: data.user.user_metadata?.language || 
-                     locale || 
-                     (existingProfile ? existingProfile.language : null) || 
-                     defaultLocale,
-            referred_by: referredBy || refId || null
+            email: data.user.email || '',
+            username: data.user.user_metadata?.name
+              ? data.user.user_metadata.name.replace(/\s+/g, '_').toLowerCase()
+              : data.user.email?.split('@')[0] || 'user',
+            full_name: data.user.user_metadata?.name || data.user.user_metadata?.full_name,
+            language: locale || defaultLocale
           };
           
-          console.log("Creating/updating user profile with data:", userData);
+          console.log("Creating/updating profile for OAuth user:", userData);
           
-          // Добавляем более подробное логирование перед созданием профиля
-          console.log("Creating profile with final data:", userData);
+          // Explicitly create or update the user profile
+          const result = await createUserProfile(data.user.id, userData);
           
-          // Создаем или обновляем профиль пользователя
-          try {
-            const result = await createUserProfile(data.user.id, userData);
-            
-            if (result.error) {
-              console.error("Error creating/updating user profile:", result.error);
-            } else {
-              console.log("User profile created/updated successfully");
-            }
-          } catch (profileError) {
-            console.error("Exception in createUserProfile:", profileError);
+          if (result.error) {
+            console.error("Error creating profile:", result.error);
+          } else {
+            console.log("Profile created/updated successfully for OAuth user");
           }
-        } else {
-          console.log("User profile already exists, skipping creation");
+        } catch (profileError) {
+          console.error("Profile creation error:", profileError);
         }
       } else {
-        console.error("No user found after code exchange");
+        console.log("Email authentication, profile will be created separately");
       }
-    } catch (error) {
-      console.error("Exception in auth callback:", error);
+    } else {
+      console.error("No auth code provided");
       return NextResponse.redirect(new URL(`/${locale}/auth/error`, requestUrl.origin));
     }
-  } else {
-    console.error("No code found in auth callback URL");
-    return NextResponse.redirect(new URL(`/${locale}/auth/error`, requestUrl.origin));
+    
+    // Determine where to redirect the user
+    const finalPath = redirectTo.startsWith('/') ? redirectTo : `/${redirectTo}`;
+    const finalUrl = new URL(`${finalPath}`, requestUrl.origin);
+    
+    console.log("Redirecting to:", finalUrl.toString());
+    
+    return NextResponse.redirect(finalUrl);
+  } catch (err) {
+    console.error("Unhandled exception in auth callback:", err);
+    return NextResponse.redirect(new URL(`/en/auth/error`, request.url));
   }
-
-  // Определяем куда перенаправить пользователя после аутентификации
-  let finalRedirectUrl: URL;
-  
-  // Если это OAuth аутентификация (Google и другие провайдеры),
-  // перенаправляем пользователя на страницу профиля
-  if (isOAuthFlow) {
-    // Перенаправляем в профиль пользователя, если не указано иное
-    finalRedirectUrl = redirectTo 
-      ? new URL(redirectTo.startsWith('/') ? redirectTo : `/${redirectTo}`, requestUrl.origin)
-      : new URL(`/${locale}/profile`, requestUrl.origin);
-      
-    console.log("OAuth flow completed, redirecting to:", finalRedirectUrl.toString());
-    return NextResponse.redirect(finalRedirectUrl);
-  }
-  
-  // Для обычной email аутентификации сохраняем исходную логику
-  if (redirectTo) {
-    finalRedirectUrl = new URL(redirectTo.startsWith('/') ? redirectTo : `/${redirectTo}`, requestUrl.origin);
-    console.log("Redirecting to specified URL:", finalRedirectUrl.toString());
-    return NextResponse.redirect(finalRedirectUrl);
-  }
-  
-  // Иначе перенаправляем на страницу успешной авторизации для подтверждения email
-  console.log("Email authentication flow completed, redirecting to success page");
-  return NextResponse.redirect(new URL(`/${locale}/auth/success`, requestUrl.origin));
 }

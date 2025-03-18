@@ -19,7 +19,10 @@ interface UserProfileData {
  * @param userData Данные пользователя для создания/обновления профиля
  */
 export async function createUserProfile(userId: string, userData: UserProfileData) {
-  console.log("Creating/updating user profile for:", userId);
+  console.log("==== CREATING/UPDATING USER PROFILE ====");
+  console.log("User ID:", userId);
+  console.log("User data:", userData);
+  
   
   try {
     const supabase = createServerComponentClient({ cookies });
