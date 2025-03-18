@@ -17,6 +17,10 @@ interface AuthContextType {
     referralCode?: string;
   }) => Promise<{ error: Error | null }>;
   signOut: () => Promise<{ error: Error | null }>;
+  signInWithGoogle: (redirectUrl?: string, options?: {
+    locale?: string;
+    referralCode?: string;
+  }) => Promise<{ error: Error | null }>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -26,6 +30,7 @@ const AuthContext = createContext<AuthContextType>({
   signIn: async () => ({ error: null }),
   signUp: async () => ({ error: null }),
   signOut: async () => ({ error: null }),
+  signInWithGoogle: async () => ({ error: null }),
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -81,6 +86,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       subscription.unsubscribe();
     };
   }, [supabase, router]);
+
+  // Авторизация через Google
+  const signInWithGoogle = async (redirectUrl?: string, options?: {
+    locale?: string;
+    referralCode?: string;
+  }) => {
+    try {
+      // Базовый URL для редиректа
+      const siteUrl = typeof window !== 'undefined' 
+        ? window.location.origin 
+        : process.env.NEXT_PUBLIC_SITE_URL || 'https://betonit-sepia.vercel.app';
+      
+      // Формируем URL для редиректа
+      const finalRedirectUrl = redirectUrl || `${siteUrl}/auth/callback`;
+      
+      // Вызываем авторизацию через Google
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: finalRedirectUrl,
+          queryParams: {
+            // Передаем дополнительные параметры
+            ...(options?.locale ? { locale: options.locale } : {}),
+            ...(options?.referralCode ? { ref: options.referralCode } : {})
+          }
+        }
+      });
+      
+      if (error) {
+        return { error };
+      }
+      
+      return { error: null };
+    } catch (error) {
+      console.error("Error during Google sign in:", error);
+      return { error: error as Error };
+    }
+  };
 
   const signIn = async (email: string, password: string) => {
     try {
@@ -193,6 +236,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signIn,
         signUp,
         signOut,
+        signInWithGoogle,
       }}
     >
       {children}

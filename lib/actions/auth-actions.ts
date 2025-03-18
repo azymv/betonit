@@ -13,13 +13,13 @@ interface UserProfileData {
 }
 
 /**
- * Создает профиль пользователя после аутентификации
+ * Создает или обновляет профиль пользователя после аутентификации
  * 
  * @param userId ID пользователя из Supabase Auth
- * @param userData Данные пользователя для создания профиля
+ * @param userData Данные пользователя для создания/обновления профиля
  */
 export async function createUserProfile(userId: string, userData: UserProfileData) {
-  console.log("Creating user profile for:", userId);
+  console.log("Creating/updating user profile for:", userId);
   
   try {
     const supabase = createServerComponentClient({ cookies });
@@ -27,20 +27,60 @@ export async function createUserProfile(userId: string, userData: UserProfileDat
     // Проверяем, существует ли уже профиль
     const { data: existingUser } = await supabase
       .from('users')
-      .select('id')
+      .select('id, username, email, full_name, language, referral_code, referred_by')
       .eq('id', userId)
       .single();
     
+    // Извлекаем данные пользователя из параметров
+    const { email, username, full_name, language, referred_by } = userData;
+    
     if (existingUser) {
-      console.log("User profile already exists, skipping creation");
+      console.log("User profile exists, updating if needed:", existingUser);
+      
+      // Подготавливаем данные для обновления, сохраняя существующие значения там, где новые не предоставлены
+      const updateData = {
+        email: email || existingUser.email,
+        username: username || existingUser.username,
+        full_name: full_name || existingUser.full_name,
+        language: language || existingUser.language
+      };
+      
+      // Добавляем referred_by только если оно указано и пока не установлено
+      if (referred_by && !existingUser.referred_by) {
+        Object.assign(updateData, { referred_by });
+      }
+      
+      // Проверяем, нужно ли обновление (если хотя бы одно поле изменилось)
+      const needsUpdate = Object.entries(updateData).some(
+        ([key, value]) => value !== existingUser[key as keyof typeof existingUser]
+      );
+      
+      if (needsUpdate) {
+        console.log("Updating user profile with:", updateData);
+        
+        // Обновляем запись пользователя
+        const { error: updateError } = await supabase
+          .from('users')
+          .update(updateData)
+          .eq('id', userId);
+        
+        if (updateError) {
+          console.error("Error updating user:", updateError);
+          return { error: updateError };
+        }
+        
+        console.log("User profile updated successfully");
+      } else {
+        console.log("No updates needed for user profile");
+      }
+      
       return { error: null };
     }
     
+    // Если профиль не существует, создаем новый
+    
     // Генерируем уникальный реферальный код
     const referralCode = generateReferralCode(userId);
-    
-    // Извлекаем данные пользователя из параметров
-    const { email, username, full_name, language, referred_by } = userData;
     
     console.log("Creating new user profile with data:", {
       email,
@@ -48,7 +88,7 @@ export async function createUserProfile(userId: string, userData: UserProfileDat
       full_name: full_name || null,
       language: language || 'en',
       referral_code: referralCode,
-      referred_by: referred_by || null // Логируем значение
+      referred_by: referred_by || null
     });
     
     // Создаем запись пользователя в базе данных
@@ -87,7 +127,7 @@ export async function createUserProfile(userId: string, userData: UserProfileDat
     return { error: null };
     
   } catch (error) {
-    console.error("Exception creating user profile:", error);
+    console.error("Exception creating/updating user profile:", error);
     return { error };
   }
 }

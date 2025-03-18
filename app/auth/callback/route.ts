@@ -9,105 +9,149 @@ export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   console.log("Auth callback URL:", requestUrl.toString());
   
-  // Check for code in search params or error
+  // Проверяем наличие кода или ошибки в параметрах
   const code = requestUrl.searchParams.get('code');
   const error = requestUrl.searchParams.get('error');
   const errorCode = requestUrl.searchParams.get('error_code');
   const errorDesc = requestUrl.searchParams.get('error_description');
   
-  // Get referral ID from URL if present
+  // Получаем redirect_to из параметров URL для перенаправления после авторизации
+  const redirectTo = requestUrl.searchParams.get('redirect_to');
+  console.log("Redirect destination:", redirectTo || "Not specified");
+  
+  // Получаем реферальный код из параметров URL
+  const ref = requestUrl.searchParams.get('ref');
   const refId = requestUrl.searchParams.get('ref_id');
-  if (refId) {
+  const locale = requestUrl.searchParams.get('locale') || defaultLocale;
+  
+  if (ref) {
+    console.log("Got referral code from URL:", ref);
+  } else if (refId) {
     console.log("Got referral ID from URL:", refId);
   } else {
-    console.log("No referral ID found in URL params");
+    console.log("No referral code or ID found in URL params");
   }
   
-  // Log the full URL and all search params for debugging
+  // Логируем полный URL и все параметры для отладки
   console.log("Full callback URL:", requestUrl.toString());
   console.log("All URL search params:", Object.fromEntries(requestUrl.searchParams.entries()));
   
-  // Log any errors from Supabase
+  // Обрабатываем ошибки аутентификации
   if (error || errorCode || errorDesc) {
     console.error("Auth callback error:", { error, errorCode, errorDesc });
-    return NextResponse.redirect(new URL(`/${defaultLocale}/auth/error`, requestUrl.origin));
+    return NextResponse.redirect(new URL(`/${locale}/auth/error`, requestUrl.origin));
   }
   
-  // Handle auth code exchange
+  // Обрабатываем обмен кода на сессию
   if (code) {
     try {
       console.log("Processing auth code");
       const supabase = createRouteHandlerClient({ cookies });
       
-      // Exchange code for session
+      // Обмениваем код на сессию
       const { data, error } = await supabase.auth.exchangeCodeForSession(code);
       
       if (error) {
         console.error("Error exchanging code for session:", error);
-        return NextResponse.redirect(new URL(`/${defaultLocale}/auth/error`, requestUrl.origin));
+        return NextResponse.redirect(new URL(`/${locale}/auth/error`, requestUrl.origin));
       }
       
       if (data.user) {
         console.log("User authenticated:", data.user.id);
         console.log("User metadata:", data.user.user_metadata);
+        console.log("Authentication provider:", data.user.app_metadata?.provider);
         
-        // Обработка реферального кода
-        const referredBy = data.user.user_metadata?.referred_by;
+        const isOAuthProvider = data.user.app_metadata?.provider && 
+                               data.user.app_metadata.provider !== 'email';
         
-        if (referredBy) {
-          console.log("User referred by:", referredBy);
+        // Проверяем, существует ли уже профиль пользователя
+        const { data: existingProfile, error: profileError } = await supabase
+          .from('users')
+          .select('id, username, language')
+          .eq('id', data.user.id)
+          .single();
+        
+        if (profileError && profileError.code !== 'PGRST116') { // PGRST116 = запись не найдена
+          console.error("Error checking user profile:", profileError);
         }
         
-        // Создаем профиль пользователя
-        try {
-          // Если в метаданных есть referred_by, передаем его в createUserProfile
-          const result = await createUserProfile(data.user.id, {
-            email: data.user.email as string,
-            username: data.user.user_metadata?.username,
-            full_name: data.user.user_metadata?.full_name,
-            language: data.user.user_metadata?.language,
-            referred_by: refId || referredBy // Используем URL параметр или метаданные
-          });
+        // Если профиль не существует или мы используем OAuth, создаем/обновляем профиль
+        if (!existingProfile || isOAuthProvider) {
+          // Получаем информацию о реферере из метаданных или URL
+          let referredBy = data.user.user_metadata?.referred_by;
           
-          if (result.error) {
-            console.error("Error creating user profile:", result.error);
-          } else {
-            console.log("User profile created successfully");
-            
-            // Если указан реферер, обновляем поле referred_by в базе данных
-            if (referredBy || refId) {
-              try {
-                const { error: updateError } = await supabase
-                  .from('users')
-                  .update({ referred_by: refId || referredBy })
-                  .eq('id', data.user.id);
+          // Если в URL указан реферальный код, ищем ID реферера
+          if (ref && !referredBy) {
+            try {
+              const { data: referrerData, error: referrerError } = await supabase
+                .from('users')
+                .select('id')
+                .eq('referral_code', ref)
+                .single();
                 
-                if (updateError) {
-                  console.error("Error updating referred_by:", updateError);
-                } else {
-                  console.log("Successfully updated referred_by field");
-                }
-              } catch (refError) {
-                console.error("Exception updating referred_by:", refError);
+              if (referrerError) {
+                console.error("Error looking up referrer by code:", referrerError);
+              } else if (referrerData) {
+                referredBy = referrerData.id;
+                console.log("Found referrer ID by code:", referredBy);
               }
+            } catch (refLookupError) {
+              console.error("Exception looking up referrer:", refLookupError);
             }
           }
-        } catch (profileError) {
-          console.error("Exception in createUserProfile:", profileError);
+          
+          // Формируем данные пользователя из метаданных или OAuth профиля
+          const userData = {
+            email: data.user.email as string,
+            username: data.user.user_metadata?.username || 
+                     (data.user.user_metadata?.name ? 
+                      data.user.user_metadata.name.replace(/\s+/g, '_').toLowerCase() : 
+                      data.user.email?.split('@')[0]),
+            full_name: data.user.user_metadata?.full_name || 
+                      data.user.user_metadata?.name || 
+                      data.user.user_metadata?.full_name,
+            language: data.user.user_metadata?.language || 
+                     locale || 
+                     existingProfile?.language || 
+                     defaultLocale,
+            referred_by: referredBy || refId || null
+          };
+          
+          // Создаем или обновляем профиль пользователя
+          try {
+            const result = await createUserProfile(data.user.id, userData);
+            
+            if (result.error) {
+              console.error("Error creating/updating user profile:", result.error);
+            } else {
+              console.log("User profile created/updated successfully");
+            }
+          } catch (profileError) {
+            console.error("Exception in createUserProfile:", profileError);
+          }
+        } else {
+          console.log("User profile already exists, skipping creation");
         }
       } else {
         console.error("No user found after code exchange");
       }
     } catch (error) {
       console.error("Exception in auth callback:", error);
-      return NextResponse.redirect(new URL(`/${defaultLocale}/auth/error`, requestUrl.origin));
+      return NextResponse.redirect(new URL(`/${locale}/auth/error`, requestUrl.origin));
     }
   } else {
     console.error("No code found in auth callback URL");
-    return NextResponse.redirect(new URL(`/${defaultLocale}/auth/error`, requestUrl.origin));
+    return NextResponse.redirect(new URL(`/${locale}/auth/error`, requestUrl.origin));
   }
 
-  // Redirect to success page after verification
+  // Если указан URL для перенаправления, используем его
+  if (redirectTo) {
+    const finalRedirectUrl = new URL(redirectTo.startsWith('/') ? redirectTo : `/${redirectTo}`, requestUrl.origin);
+    console.log("Redirecting to specified URL:", finalRedirectUrl.toString());
+    return NextResponse.redirect(finalRedirectUrl);
+  }
+  
+  // Иначе перенаправляем на страницу успешной авторизации
   console.log("Auth callback completed, redirecting to success page");
-  return NextResponse.redirect(new URL(`/${defaultLocale}/auth/success`, requestUrl.origin));
+  return NextResponse.redirect(new URL(`/${locale}/auth/success`, requestUrl.origin));
 }
