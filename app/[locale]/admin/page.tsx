@@ -3,9 +3,9 @@
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Loader2, Database, Check, Plus } from 'lucide-react';
+import { Loader2, Database, Check, Plus, RefreshCcw } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { createEvent } from '@/lib/actions/seed-events';
 import EventForm from '@/components/admin/EventForm';
@@ -28,6 +28,7 @@ export default function AdminPage() {
   const localeStr = typeof params.locale === 'string' ? params.locale : 'en';
   
   const [isLoading, setIsLoading] = useState(false);
+  const [isSeedLoading, setIsSeedLoading] = useState(false);
   const [result, setResult] = useState<AdminResult | null>(null);
   
   // Функция для создания тестовых событий
@@ -50,24 +51,57 @@ export default function AdminPage() {
       if (response.success) {
         setResult({
           success: true,
-          message: 'Событие успешно создано',
-          eventsCount: 1,
-          events: response.event ? [response.event] : undefined,
+          message: 'Тестовое событие успешно создано!',
+          eventsCount: 1
         });
       } else {
         setResult({
           success: false,
-          error: response.error || 'Неизвестная ошибка',
+          error: response.error || 'Не удалось создать тестовое событие'
         });
       }
-    } catch (err) {
-      console.error('Error creating test event:', err);
+    } catch (error) {
+      console.error('Error creating test event:', error);
       setResult({
         success: false,
-        error: err instanceof Error ? err.message : 'Неизвестная ошибка',
+        error: error instanceof Error ? error.message : 'Неизвестная ошибка'
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Функция для заполнения базы тестовыми событиями через API
+  const seedTestEvents = async () => {
+    setIsSeedLoading(true);
+    setResult(null);
+    
+    try {
+      // Получаем ключ из переменных окружения (в реальном приложении это должно быть безопасно хранимое значение)
+      const seedKey = process.env.NEXT_PUBLIC_SEED_API_KEY || 'your_super_secret_seed_key_change_this';
+      
+      // Вызываем API для заполнения данными
+      const response = await fetch(`/api/admin/seed?key=${seedKey}`);
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Не удалось заполнить базу тестовыми событиями');
+      }
+      
+      setResult({
+        success: true,
+        message: 'База успешно заполнена тестовыми событиями',
+        eventsCount: data.events?.length,
+        events: data.events
+      });
+    } catch (error) {
+      console.error('Error seeding test events:', error);
+      setResult({
+        success: false,
+        error: error instanceof Error ? error.message : 'Неизвестная ошибка'
+      });
+    } finally {
+      setIsSeedLoading(false);
     }
   };
   
@@ -114,33 +148,66 @@ export default function AdminPage() {
                   <AlertTitle className="text-green-800">Успех</AlertTitle>
                   <AlertDescription className="text-green-700">
                     {result.message}
-                    {result.eventsCount !== undefined && ` Создано событий: ${result.eventsCount}`}
-                    {result.existingCount !== undefined && ` Количество существующих событий: ${result.existingCount}`}
+                    {result.eventsCount && (
+                      <span className="block mt-1">
+                        Количество созданных событий: <strong>{result.eventsCount}</strong>
+                      </span>
+                    )}
                   </AlertDescription>
                 </Alert>
               )}
               
-              <p className="mb-4">
-                Эта функция создаст тестовое событие в базе данных для демонстрации платформы.
-                Используйте только в тестовом или демо-окружении.
-              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="border rounded-lg p-4">
+                  <h3 className="text-lg font-medium mb-2">Создать одно тестовое событие</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Создает одно тестовое событие с базовыми параметрами. Используйте для быстрого тестирования.
+                  </p>
+                  <Button 
+                    onClick={createTestEvents} 
+                    disabled={isLoading}
+                    className="w-full"
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Создание...
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Создать тестовое событие
+                      </>
+                    )}
+                  </Button>
+                </div>
+                
+                <div className="border rounded-lg p-4">
+                  <h3 className="text-lg font-medium mb-2">Заполнить базу тестовыми событиями</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Создает несколько разнообразных тестовых событий. Используйте для заполнения пустой базы данных.
+                  </p>
+                  <Button 
+                    onClick={seedTestEvents} 
+                    disabled={isSeedLoading}
+                    className="w-full"
+                    variant="secondary"
+                  >
+                    {isSeedLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Заполнение...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCcw className="mr-2 h-4 w-4" />
+                        Заполнить базу тестовыми событиями
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
             </CardContent>
-            <CardFooter>
-              <Button 
-                onClick={createTestEvents} 
-                disabled={isLoading}
-                className="w-full"
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Создание тестового события...
-                  </>
-                ) : (
-                  'Создать тестовое событие'
-                )}
-              </Button>
-            </CardFooter>
           </Card>
         </TabsContent>
       </Tabs>

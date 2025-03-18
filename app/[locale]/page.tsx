@@ -9,6 +9,11 @@ import { RainbowButton } from "@/components/ui/rainbow-button";
 import { HowItWorksSection } from "@/components/sections/how-it-works";
 import { useAuth } from "@/lib/context/auth-context";
 import { useEffect, useState, useRef } from "react";
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { Database } from '@/lib/types/supabase';
+import { Event } from '@/lib/types/event';
+import Image from 'next/image';
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function HomePage() {
   const params = useParams();
@@ -16,10 +21,58 @@ export default function HomePage() {
   const { t } = useTranslation(locale);
   const { user } = useAuth();
   
+  // Состояние для хранения загруженных событий
+  const [featuredEvents, setFeaturedEvents] = useState<Event[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   // Состояние для параллакс-эффекта
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const coinsRef = useRef<HTMLDivElement>(null);
   const gatesRef = useRef<HTMLDivElement>(null);
+  
+  // Загрузка событий из базы данных
+  useEffect(() => {
+    const fetchFeaturedEvents = async () => {
+      setIsLoading(true);
+      setError(null);
+      
+      try {
+        const supabase = createClientComponentClient<Database>({
+          options: {
+            global: {
+              headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+              }
+            }
+          }
+        });
+        
+        // Получаем три последних события, сортируя по дате создания (в обратном порядке)
+        const { data, error } = await supabase
+          .from('events')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(3);
+        
+        if (error) {
+          throw error;
+        }
+        
+        if (data) {
+          setFeaturedEvents(data as Event[]);
+        }
+      } catch (err) {
+        console.error('Error fetching featured events:', err);
+        setError(err instanceof Error ? err.message : 'Ошибка загрузки событий');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchFeaturedEvents();
+  }, []);
   
   // Обработчик движения мыши для параллакс-эффекта
   useEffect(() => {
@@ -49,41 +102,27 @@ export default function HomePage() {
     }
   }, [mousePosition]);
 
-  const featuredEvents = [
-    {
-      id: "1",
-      title: locale === 'en' ? "Will Bitcoin exceed $100k by the end of the year?" : "Будет ли Bitcoin выше $100k к концу года?",
-      shortDescription: locale === 'en' ? "Make a bet on the future price of Bitcoin" : "Сделайте ставку на будущую стоимость Bitcoin",
-      image: "/images/events/event_placeholder.png",
-      yesProbability: 65,
-      endTime: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-    },
-    {
-      id: "2",
-      title: locale === 'en' ? "Who will win the elections?" : "Кто победит на выборах?",
-      shortDescription: locale === 'en' ? "Predict political events" : "Предсказывайте политические события",
-      image: "/images/events/event_placeholder.png",
-      yesProbability: 48,
-      endTime: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
-    },
-    {
-      id: "3",
-      title: locale === 'en' ? "Will Mars colonization begin this year?" : "Будет ли запущена колонизация Марса в этом году?",
-      shortDescription: locale === 'en' ? "Space events and launches" : "Космические события и запуски",
-      image: "/images/events/event_placeholder.png",
-      yesProbability: 15,
-      endTime: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
-    },
-  ];
+  // Получаем статистику ставок (фиксированные значения для демонстрации)
+  const getEventStats = (event: Event) => {
+    // Используем ID события для получения стабильного значения
+    const hash = event.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const yesProbability = (hash % 71) + 15; // Значение от 15 до 85
+    
+    return {
+      yesProbability,
+      noProbability: 100 - yesProbability
+    };
+  };
 
-  const formatDate = (date: Date) => {
+  const formatDate = (date: string) => {
+    const dateObj = new Date(date);
     const options: Intl.DateTimeFormatOptions = {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
     };
     const formatter = new Intl.DateTimeFormat(locale === "en" ? "en-US" : "ru", options);
-    return formatter.format(date);
+    return formatter.format(dateObj);
   };
 
   return (
@@ -191,42 +230,95 @@ export default function HomePage() {
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {featuredEvents.map((event) => (
-              <Card key={event.id} className="overflow-hidden hover:shadow-md transition-shadow border border-gray-200">
-                <div className="relative h-40 w-full bg-slate-200">
-                  {/* Здесь будет изображение события */}
+          {isLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="space-y-3">
+                  <Skeleton className="h-40 w-full rounded-lg relative overflow-hidden" />
+                  <Skeleton className="h-6 w-full" />
+                  <Skeleton className="h-4 w-3/4" />
+                  <div className="flex justify-between">
+                    <Skeleton className="h-4 w-1/4" />
+                    <Skeleton className="h-4 w-1/4" />
+                  </div>
+                  <Skeleton className="h-2 w-full" />
+                  <Skeleton className="h-10 w-full" />
                 </div>
-                <CardContent className="p-4">
-                  <h3 className="font-semibold text-lg mb-2">{event.title}</h3>
-                  <p className="text-sm text-muted-foreground mb-3">
-                    {event.shortDescription}
-                  </p>
-                  <div className="flex justify-between text-sm mb-2">
-                    <span>
-                      {locale === 'en' ? 'Yes probability:' : 'Вероятность Да:'} {event.yesProbability}%
-                    </span>
-                    <span>
-                      {locale === 'en' ? 'Until:' : 'До:'} {formatDate(event.endTime)}
-                    </span>
-                  </div>
-                  <div className="w-full bg-gray-200 h-2 rounded-full">
-                    <div
-                      className="bg-primary h-2 rounded-full"
-                      style={{ width: `${event.yesProbability}%` }}
-                    />
-                  </div>
-                  <div className="mt-4">
-                    <Button className="w-full bg-secondary text-secondary-foreground hover:bg-secondary/90" asChild>
-                      <Link href={`/${locale}/events/${event.id}`}>
-                        {locale === 'en' ? 'Details' : 'Подробнее'}
-                      </Link>
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : featuredEvents.length === 0 ? (
+            <div className="text-center py-12 bg-white rounded-lg border border-gray-100 shadow-sm">
+              <h3 className="text-xl font-semibold mb-2">
+                {locale === 'en' ? 'No events found' : 'События не найдены'}
+              </h3>
+              <p className="text-muted-foreground">
+                {locale === 'en' ? 'Check back later for new prediction events.' : 'Загляните позже для новых событий для предсказаний.'}
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {featuredEvents.map((event) => {
+                const stats = getEventStats(event);
+                return (
+                  <Card key={event.id} className="overflow-hidden hover:shadow-md transition-shadow border border-gray-200">
+                    <div className="relative h-40 w-full bg-slate-200">
+                      {event.image_url ? (
+                        <Image 
+                          src={event.image_url.startsWith('http') 
+                            ? event.image_url 
+                            : event.image_url.startsWith('/') 
+                              ? event.image_url 
+                              : `/${event.image_url}`}
+                          alt={event.title}
+                          fill
+                          style={{ objectFit: 'cover' }}
+                          onError={(e) => {
+                            // If the image fails to load, replace with the placeholder
+                            const target = e.target as HTMLImageElement;
+                            target.src = '/images/events/event_placeholder.png';
+                          }}
+                        />
+                      ) : (
+                        <Image 
+                          src="/images/events/event_placeholder.png" 
+                          alt="Placeholder image"
+                          fill
+                          style={{ objectFit: 'cover' }}
+                        />
+                      )}
+                    </div>
+                    <CardContent className="p-4">
+                      <h3 className="font-semibold text-lg mb-2">{event.title}</h3>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        {event.short_description}
+                      </p>
+                      <div className="flex justify-between text-sm mb-2">
+                        <span>
+                          {locale === 'en' ? 'Yes probability:' : 'Вероятность Да:'} {stats.yesProbability}%
+                        </span>
+                        <span>
+                          {locale === 'en' ? 'Until:' : 'До:'} {formatDate(event.end_time)}
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-200 h-2 rounded-full">
+                        <div
+                          className="bg-primary h-2 rounded-full"
+                          style={{ width: `${stats.yesProbability}%` }}
+                        />
+                      </div>
+                      <div className="mt-4">
+                        <Button className="w-full bg-secondary text-secondary-foreground hover:bg-secondary/90" asChild>
+                          <Link href={`/${locale}/events/${event.id}`}>
+                            {locale === 'en' ? 'Details' : 'Подробнее'}
+                          </Link>
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
         </div>
       </section>
 
