@@ -241,6 +241,49 @@ export interface Database {
           }
         ]
       }
+      user_stats: {
+        Row: {
+          user_id: string
+          rank: number
+          score: number
+          monthly_rank: number
+          monthly_score: number
+          total_bets: number
+          won_bets: number
+          created_at: string
+          updated_at: string | null
+        }
+        Insert: {
+          user_id: string
+          rank?: number
+          score?: number
+          monthly_rank?: number
+          monthly_score?: number
+          total_bets?: number
+          won_bets?: number
+          created_at?: string
+          updated_at?: string | null
+        }
+        Update: {
+          user_id?: string
+          rank?: number
+          score?: number
+          monthly_rank?: number
+          monthly_score?: number
+          total_bets?: number
+          won_bets?: number
+          created_at?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_stats_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       users: {
         Row: {
           id: string
@@ -304,6 +347,10 @@ export interface Database {
           p_amount: number;
           p_description: string;
         };
+        Returns: void;
+      };
+      update_leaderboard_ranks: {
+        Args: Record<string, never>;
         Returns: void;
       };
     }

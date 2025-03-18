@@ -11,9 +11,23 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Database } from '@/lib/types/supabase';
-import { User, ListTodo, Loader2, AlertCircle, BarChart3 } from 'lucide-react';
+import { User, ListTodo, Loader2, AlertCircle, BarChart3, Trophy } from 'lucide-react';
 import { useAnalytics } from '@/components/analytics/analytics-provider';
 import { ReferralTab } from '@/components/referral/ReferralTab';
+import UserAchievements from '@/components/profile/UserAchievements';
+import { getUserRank } from '@/lib/actions/leaderboard-actions';
+
+// Определение интерфейса для статистики пользователя
+interface UserStats {
+  total_bets: number;
+  won_bets: number;
+  achievements?: {
+    id: string;
+    type: string;
+    title: string;
+    description: string;
+  }[];
+}
 
 // Типы из Database
 type Bet = Database['public']['Tables']['bets']['Row'];
@@ -70,6 +84,8 @@ export default function ProfilePage() {
   const [betStats, setBetStats] = useState<BetStatistics>({ total: 0, won: 0, lost: 0, winRate: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<{ message: string; details?: string } | null>(null);
+  const [userRank, setUserRank] = useState<{ rank: number; score: number; } | null>(null);
+  const [userStats, setUserStats] = useState<UserStats | null>(null);
   
   // Вычисление статистики ставок
   const calculateBetStats = (bets: BetWithEvent[]): BetStatistics => {
@@ -79,6 +95,49 @@ export default function ProfilePage() {
     const winRate = total > 0 ? (won / total) * 100 : 0;
     
     return { total, won, lost, winRate };
+  };
+  
+  // Генерация демо достижений на основе статистики ставок (fallback)
+  const generateAchievements = (totalBets: number, wonBets: number) => {
+    const achievements = [];
+    
+    if (totalBets >= 1) {
+      achievements.push({
+        id: 'first_bet',
+        type: 'bet_count',
+        title: localeStr === 'ru' ? 'Первая ставка' : 'First Bet',
+        description: localeStr === 'ru' ? 'Сделайте свою первую ставку' : 'Place your first bet'
+      });
+    }
+    
+    if (totalBets >= 10) {
+      achievements.push({
+        id: 'ten_bets',
+        type: 'bet_count',
+        title: localeStr === 'ru' ? 'Регулярный игрок' : 'Regular Player',
+        description: localeStr === 'ru' ? 'Сделайте 10 ставок' : 'Place 10 bets'
+      });
+    }
+    
+    if (wonBets >= 5) {
+      achievements.push({
+        id: 'five_wins',
+        type: 'win_streak',
+        title: localeStr === 'ru' ? 'На волне успеха' : 'On a Roll',
+        description: localeStr === 'ru' ? 'Выиграйте 5 ставок' : 'Win 5 bets'
+      });
+    }
+    
+    if (wonBets >= 1 && totalBets >= 3 && (wonBets / totalBets) >= 0.5) {
+      achievements.push({
+        id: 'accuracy',
+        type: 'top_rank',
+        title: localeStr === 'ru' ? 'Меткий глаз' : 'Sharp Eye',
+        description: localeStr === 'ru' ? 'Достигните точности прогнозов 50% или выше' : 'Achieve a forecast accuracy of 50% or higher'
+      });
+    }
+    
+    return achievements;
   };
   
   // Загрузка данных профиля
@@ -161,7 +220,26 @@ export default function ProfilePage() {
         });
       } else if (betsData) {
         setUserBets(betsData as BetWithEvent[]);
-        setBetStats(calculateBetStats(betsData as BetWithEvent[]));
+        const calculatedStats = calculateBetStats(betsData as BetWithEvent[]);
+        setBetStats(calculatedStats);
+        
+        // Создаем пользовательскую статистику и достижения на основе данных ставок
+        const userAchievements = generateAchievements(calculatedStats.total, calculatedStats.won);
+        
+        setUserStats({
+          total_bets: calculatedStats.total,
+          won_bets: calculatedStats.won,
+          achievements: userAchievements
+        });
+      }
+      
+      // Загружаем ранг пользователя
+      const rankData = await getUserRank(user.id);
+      if (rankData) {
+        setUserRank({
+          rank: rankData.rank,
+          score: rankData.score
+        });
       }
       
     } catch (err) {
@@ -339,6 +417,28 @@ export default function ProfilePage() {
             </CardContent>
           </Card>
           
+          {/* Достижения пользователя - только для мобильной версии */}
+          <div className="md:hidden mt-6">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2">
+                  <Trophy className="h-5 w-5" />
+                  {t('profile.achievements')}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <UserAchievements
+                  rank={userRank?.rank}
+                  score={userRank?.score}
+                  totalBets={userStats?.total_bets}
+                  wonBets={userStats?.won_bets}
+                  achievements={userStats?.achievements}
+                  t={t}
+                />
+              </CardContent>
+            </Card>
+          </div>
+          
           {/* Статистика ставок */}
           {betStats.total > 0 && (
             <Card className="mt-6">
@@ -462,7 +562,7 @@ export default function ProfilePage() {
         </div>
         
         {/* Правая колонка с вкладками */}
-        <div>
+        <div className="space-y-6">
           <Tabs defaultValue="bets" className="w-full">
             <Card>
               <CardHeader className="pb-3">
@@ -528,6 +628,28 @@ export default function ProfilePage() {
               </CardContent>
             </Card>
           </Tabs>
+          
+          {/* Достижения пользователя - только для десктопной версии */}
+          <div className="hidden md:block">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2">
+                  <Trophy className="h-5 w-5" />
+                  {t('profile.achievements')}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <UserAchievements
+                  rank={userRank?.rank}
+                  score={userRank?.score}
+                  totalBets={userStats?.total_bets}
+                  wonBets={userStats?.won_bets}
+                  achievements={userStats?.achievements}
+                  t={t}
+                />
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </div>

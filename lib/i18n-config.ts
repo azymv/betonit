@@ -3,7 +3,7 @@ export const locales = ['en', 'ru'];
 export const defaultLocale = 'en';
 
 // Простой хелпер для перевода
-export function getTranslation(locale: string, key: string): string {
+export function getTranslation(locale: string, key: string, params?: Record<string, string | number>): string {
   const translations: Record<string, Record<string, string>> = {
     en: {
       'nav.home': 'Home',
@@ -173,6 +173,11 @@ export function getTranslation(locale: string, key: string): string {
 'profile.stats.lost': 'Lost',
 'profile.stats.accuracy': 'Forecast Accuracy',
 'profile.activity': 'Activity',
+'profile.achievements': 'Achievements',
+'profile.winRate': 'Win Rate',
+'profile.yourAchievements': 'Your Achievements',
+'profile.noAchievementsYet': 'No achievements yet',
+'profile.makeMoreBets': 'Keep betting to earn achievements',
 'referral.title': 'Referral Program',
 'referral.yourCode': 'Your unique code',
 'referral.description': 'Share your unique code with friends to earn more coins! When they sign up and place their first bet, you\'ll get 100 coins, and they\'ll get 50. Win-win!',
@@ -208,6 +213,45 @@ export function getTranslation(locale: string, key: string): string {
       'footer.terms': 'Terms of Service',
       'footer.privacy': 'Privacy Policy',
       'footer.copyright': 'All rights reserved.',
+      
+      // Leaderboard
+      'leaderboard.title': 'Leaderboard',
+      'leaderboard.allTime': 'All Time',
+      'leaderboard.monthly': 'This Month',
+      'leaderboard.rank': 'Rank',
+      'leaderboard.user': 'User',
+      'leaderboard.score': 'Score',
+      'leaderboard.bets': 'Bets',
+      'leaderboard.winRate': 'Win Rate',
+      'leaderboard.noData': 'No data available',
+      'leaderboard.anonymous': 'Anonymous',
+      'leaderboard.you': 'You',
+      'leaderboard.yourStats': 'Your Stats',
+      'leaderboard.yourPosition': 'Your position',
+      'leaderboard.outOf': 'out of {total}',
+      'leaderboard.yourScore': 'Your Score',
+      'leaderboard.yourRank': 'Your Rank',
+      'leaderboard.topPredictors': 'Top Predictors',
+      'leaderboard.allTimeLeaders': 'All Time Leaders',
+      'leaderboard.monthlyLeaders': 'This Month Leaders',
+      'leaderboard.tableDescription': 'See who has the most accurate predictions on the platform',
+      'leaderboard.howToEarnPoints': 'How to Earn Points',
+      'leaderboard.points': 'points',
+      'leaderboard.rules.placeBets': 'Place Bets',
+      'leaderboard.rules.placeBetsDescription': 'Earn points for each bet you place',
+      'leaderboard.rules.winBets': 'Win Bets',
+      'leaderboard.rules.winBetsDescription': 'Earn additional points when your predictions are correct',
+      'leaderboard.rules.referFriends': 'Refer Friends',
+      'leaderboard.rules.referFriendsDescription': 'Earn bonus points when your referred friends make their first bet',
+      'leaderboard.rankLabels.first': 'Champion',
+      'leaderboard.rankLabels.top3': 'Top 3',
+      'leaderboard.rankLabels.top10': 'Top 10',
+      'leaderboard.rankLabels.top1percent': 'Top 1%',
+      'leaderboard.rankLabels.top5percent': 'Top 5%',
+      'leaderboard.rankLabels.top10percent': 'Top 10%',
+      'leaderboard.rankLabels.top25percent': 'Top 25%',
+      'leaderboard.rankLabels.top50percent': 'Top 50%',
+      'leaderboard.rankLabels.other': 'Challenger',
     },
     ru: {
       'nav.home': 'Главная',
@@ -356,7 +400,7 @@ export function getTranslation(locale: string, key: string): string {
       
       // Profile
       'profile.title': 'Мой профиль',
-      'profile.personalInfo': 'Личная информация',
+      'profile.personalInfo': 'Персональная информация',
       'profile.email': 'Email',
       'profile.username': 'Имя пользователя',
       'profile.fullName': 'Полное имя',
@@ -368,16 +412,21 @@ export function getTranslation(locale: string, key: string): string {
       'profile.notSet': 'Не указано',
       'profile.noBets': 'Вы еще не сделали ни одной ставки',
       'profile.comingSoon': 'Эта функция скоро появится',
-      'profile.bets.won': 'Выигрыш',
-      'profile.bets.lost': 'Проигрыш',
-      'profile.bets.waiting': 'Ожидание результата',
-      'profile.bets.active': 'Активна',
+      'profile.bets.won': 'Выиграно',
+      'profile.bets.lost': 'Проиграно',
+      'profile.bets.waiting': 'Ожидается решение',
+      'profile.bets.active': 'Активно',
       'profile.stats.title': 'Статистика ставок',
 'profile.stats.total': 'Всего ставок',
-'profile.stats.won': 'Побед',
-'profile.stats.lost': 'Поражений',
+'profile.stats.won': 'Выиграно',
+'profile.stats.lost': 'Проиграно',
 'profile.stats.accuracy': 'Точность прогнозов',
 'profile.activity': 'Активность',
+'profile.achievements': 'Достижения',
+'profile.winRate': 'Процент побед',
+'profile.yourAchievements': 'Ваши достижения',
+'profile.noAchievementsYet': 'Пока нет достижений',
+'profile.makeMoreBets': 'Продолжайте делать ставки, чтобы получить достижения',
 'referral.title': 'Реферальная программа',
 'referral.description': 'Поделись своим уникальным кодом с друзьями, чтобы заработать больше монет. Когда они зарегистрируются и сделают первую ставку, ты получишь 100 монет, а они — 50. Win-win!',
 'referral.yourLink': 'Ваша реферальная ссылка',
@@ -409,14 +458,62 @@ export function getTranslation(locale: string, key: string): string {
       'footer.account': 'Аккаунт',
       'footer.myBets': 'Мои ставки',
       'footer.balance': 'Баланс',
-      'footer.legal': 'Правовая информация',
+      'footer.legal': 'Юридическая информация',
       'footer.terms': 'Условия использования',
       'footer.privacy': 'Политика конфиденциальности',
       'footer.copyright': 'Все права защищены.',
+      
+      // Leaderboard
+      'leaderboard.title': 'Рейтинг',
+      'leaderboard.allTime': 'За все время',
+      'leaderboard.monthly': 'За месяц',
+      'leaderboard.rank': 'Ранг',
+      'leaderboard.user': 'Пользователь',
+      'leaderboard.score': 'Очки',
+      'leaderboard.bets': 'Ставки',
+      'leaderboard.winRate': 'Процент побед',
+      'leaderboard.noData': 'Нет данных',
+      'leaderboard.anonymous': 'Аноним',
+      'leaderboard.you': 'Вы',
+      'leaderboard.yourStats': 'Ваша статистика',
+      'leaderboard.yourPosition': 'Ваша позиция',
+      'leaderboard.outOf': 'из {total}',
+      'leaderboard.yourScore': 'Ваши очки',
+      'leaderboard.yourRank': 'Ваш ранг',
+      'leaderboard.topPredictors': 'Лучшие предсказатели',
+      'leaderboard.allTimeLeaders': 'Лидеры за все время',
+      'leaderboard.monthlyLeaders': 'Лидеры месяца',
+      'leaderboard.tableDescription': 'Узнайте, у кого самые точные прогнозы на платформе',
+      'leaderboard.howToEarnPoints': 'Как получать очки',
+      'leaderboard.points': 'очков',
+      'leaderboard.rules.placeBets': 'Делайте ставки',
+      'leaderboard.rules.placeBetsDescription': 'Зарабатывайте очки за каждую сделанную ставку',
+      'leaderboard.rules.winBets': 'Выигрывайте ставки',
+      'leaderboard.rules.winBetsDescription': 'Получайте дополнительные очки, когда ваши прогнозы верны',
+      'leaderboard.rules.referFriends': 'Приглашайте друзей',
+      'leaderboard.rules.referFriendsDescription': 'Получайте бонусные очки, когда приглашенные вами друзья делают первую ставку',
+      'leaderboard.rankLabels.first': 'Чемпион',
+      'leaderboard.rankLabels.top3': 'Топ 3',
+      'leaderboard.rankLabels.top10': 'Топ 10',
+      'leaderboard.rankLabels.top1percent': 'Лучший 1%',
+      'leaderboard.rankLabels.top5percent': 'Лучшие 5%',
+      'leaderboard.rankLabels.top10percent': 'Лучшие 10%',
+      'leaderboard.rankLabels.top25percent': 'Лучшие 25%',
+      'leaderboard.rankLabels.top50percent': 'Лучшие 50%',
+      'leaderboard.rankLabels.other': 'Претендент',
     }
   };
   
-  return translations[locale]?.[key] || key;
+  let result = translations[locale]?.[key] || key;
+  
+  // Replace parameters in the string if they exist
+  if (params) {
+    Object.entries(params).forEach(([paramKey, paramValue]) => {
+      result = result.replace(new RegExp(`{${paramKey}}`, 'g'), String(paramValue));
+    });
+  }
+  
+  return result;
 }
 
 // Простой hook для перевода (клиентская сторона)
@@ -425,6 +522,6 @@ export function useTranslation(locale: string) {
   const safeLocale = locale && typeof locale === 'string' ? locale : defaultLocale;
   
   return {
-    t: (key: string) => getTranslation(safeLocale, key)
+    t: (key: string, params?: Record<string, string | number>) => getTranslation(safeLocale, key, params)
   };
 }
