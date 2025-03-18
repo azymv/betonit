@@ -11,6 +11,7 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Database } from '@/lib/types/supabase';
 import { useTranslation } from '@/lib/i18n-config';
 import { EVENT_CATEGORIES, Event } from '@/lib/types/event';
+import Image from 'next/image';
 
 export default function EventsPage() {
   const params = useParams();
@@ -115,7 +116,7 @@ export default function EventsPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <div key={i} className="space-y-3">
-              <Skeleton className="h-40 w-full rounded-lg" />
+              <Skeleton className="h-40 w-full rounded-lg relative overflow-hidden" />
               <Skeleton className="h-6 w-full" />
               <Skeleton className="h-4 w-3/4" />
               <div className="flex justify-between">
@@ -186,7 +187,30 @@ export default function EventsPage() {
             return (
               <Card key={event.id} className="overflow-hidden hover:shadow-md transition-shadow">
                 <div className="relative h-40 w-full bg-slate-200">
-                  {/* Здесь будет изображение события */}
+                  {event.image_url ? (
+                    <Image 
+                      src={event.image_url.startsWith('http') 
+                        ? event.image_url 
+                        : event.image_url.startsWith('/') 
+                          ? event.image_url 
+                          : `/${event.image_url}`}
+                      alt={event.title}
+                      fill
+                      style={{ objectFit: 'cover' }}
+                      onError={(e) => {
+                        // If the image fails to load, replace with the placeholder
+                        const target = e.target as HTMLImageElement;
+                        target.src = '/images/events/placeholder.jpg';
+                      }}
+                    />
+                  ) : (
+                    <Image 
+                      src="/images/events/placeholder.jpg" 
+                      alt="Placeholder image"
+                      fill
+                      style={{ objectFit: 'cover' }}
+                    />
+                  )}
                   <Badge 
                     className="absolute top-2 right-2"
                     variant="default"
