@@ -157,3 +157,33 @@ export async function updateLeaderboardRanks(): Promise<boolean> {
     return false;
   }
 }
+
+export async function updateLeaderboardRanksAdmin() {
+  try {
+    const supabase = createServerComponentClient<Database>({ cookies });
+    
+    // Вызываем хранимую процедуру для обновления рангов
+    const { error } = await supabase.rpc('update_leaderboard_ranks');
+    
+    if (error) {
+      console.error('Error updating leaderboard ranks:', error);
+      return { success: false, error: error.message };
+    }
+    
+    // Обновляем данные на странице лидерборда
+    revalidatePath('/leaderboard');
+    
+    // Возвращаем информацию об успешном обновлении
+    return { 
+      success: true, 
+      timestamp: new Date().toISOString(),
+      message: 'Ранги лидерборда успешно обновлены' 
+    };
+  } catch (error) {
+    console.error('Exception updating leaderboard ranks:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Неизвестная ошибка' 
+    };
+  }
+}

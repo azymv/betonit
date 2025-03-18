@@ -5,9 +5,10 @@ import { useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Loader2, Database, Check, Plus, RefreshCcw } from 'lucide-react';
+import { Loader2, Database, Check, Plus, RefreshCcw, Trophy, BarChart } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { createEvent } from '@/lib/actions/seed-events';
+import { updateLeaderboardRanksAdmin } from '@/lib/actions/leaderboard-actions';
 import EventForm from '@/components/admin/EventForm';
 import { Event } from '@/lib/types/event';
 
@@ -19,6 +20,7 @@ interface AdminResult {
   eventsCount?: number;
   existingCount?: number;
   events?: Event[];
+  timestamp?: string;
 }
 
 export default function AdminPage() {
@@ -29,6 +31,7 @@ export default function AdminPage() {
   
   const [isLoading, setIsLoading] = useState(false);
   const [isSeedLoading, setIsSeedLoading] = useState(false);
+  const [isRankUpdateLoading, setIsRankUpdateLoading] = useState(false);
   const [result, setResult] = useState<AdminResult | null>(null);
   
   // Функция для создания тестовых событий
@@ -105,6 +108,37 @@ export default function AdminPage() {
     }
   };
   
+  // Новая функция для обновления рангов лидерборда
+  const updateLeaderboardRanks = async () => {
+    setIsRankUpdateLoading(true);
+    setResult(null);
+    
+    try {
+      const response = await updateLeaderboardRanksAdmin();
+      
+      if (response.success) {
+        setResult({
+          success: true,
+          message: response.message || 'Ранги лидерборда успешно обновлены',
+          timestamp: response.timestamp
+        });
+      } else {
+        setResult({
+          success: false,
+          error: response.error || 'Не удалось обновить ранги лидерборда'
+        });
+      }
+    } catch (error) {
+      console.error('Error updating leaderboard ranks:', error);
+      setResult({
+        success: false,
+        error: error instanceof Error ? error.message : 'Неизвестная ошибка'
+      });
+    } finally {
+      setIsRankUpdateLoading(false);
+    }
+  };
+  
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-8">Админ-панель</h1>
@@ -116,6 +150,9 @@ export default function AdminPage() {
           </TabsTrigger>
           <TabsTrigger value="seed-data" className="flex items-center gap-1">
             <Database className="h-4 w-4" /> Тестовые данные
+          </TabsTrigger>
+          <TabsTrigger value="leaderboard" className="flex items-center gap-1">
+            <Trophy className="h-4 w-4" /> Лидерборд
           </TabsTrigger>
         </TabsList>
         
@@ -205,6 +242,94 @@ export default function AdminPage() {
                       </>
                     )}
                   </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="leaderboard">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Trophy className="h-5 w-5" />
+                Управление лидербордом
+              </CardTitle>
+              <CardDescription>
+                Обновление рангов пользователей и другие операции с таблицей лидеров
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {result && !result.success && (
+                <Alert variant="destructive" className="mb-4">
+                  <AlertTitle>Ошибка</AlertTitle>
+                  <AlertDescription>{result.error}</AlertDescription>
+                </Alert>
+              )}
+              
+              {result && result.success && (
+                <Alert className="mb-4 bg-green-50 border-green-200">
+                  <Check className="h-4 w-4 text-green-600" />
+                  <AlertTitle className="text-green-800">Успех</AlertTitle>
+                  <AlertDescription className="text-green-700">
+                    {result.message}
+                    {result.timestamp && (
+                      <span className="block mt-1">
+                        Время обновления: <strong>{new Date(result.timestamp).toLocaleString()}</strong>
+                      </span>
+                    )}
+                  </AlertDescription>
+                </Alert>
+              )}
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="border rounded-lg p-4">
+                  <h3 className="text-lg font-medium mb-2">Обновить ранги лидерборда</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Пересчитывает ранги пользователей на основе их текущих очков и обновляет таблицы лидеров.
+                  </p>
+                  <Button 
+                    onClick={updateLeaderboardRanks} 
+                    disabled={isRankUpdateLoading}
+                    className="w-full"
+                  >
+                    {isRankUpdateLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Обновление рангов...
+                      </>
+                    ) : (
+                      <>
+                        <BarChart className="mr-2 h-4 w-4" />
+                        Обновить ранги лидерборда
+                      </>
+                    )}
+                  </Button>
+                </div>
+                
+                <div className="border rounded-lg p-4 bg-muted/10">
+                  <h3 className="text-lg font-medium mb-2">Статистика лидерборда</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Последнее обновление:</span>
+                      <span className="font-medium">
+                        {result?.timestamp 
+                          ? new Date(result.timestamp).toLocaleString() 
+                          : 'Неизвестно'}
+                      </span>
+                    </div>
+                    
+                    <div className="text-sm text-muted-foreground">
+                      <p>Ранги лидерборда обновляются автоматически при размещении ставок, но глобальное обновление 
+                      позволяет синхронизировать все таблицы рейтингов.</p>
+                      <p className="mt-2">Рекомендуется выполнять обновление:</p>
+                      <ul className="list-disc ml-5 mt-1">
+                        <li>В начале нового месяца</li>
+                        <li>После массового обновления данных</li>
+                        <li>При несоответствиях в таблице лидеров</li>
+                      </ul>
+                    </div>
+                  </div>
                 </div>
               </div>
             </CardContent>
