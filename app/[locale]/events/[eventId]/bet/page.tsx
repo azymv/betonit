@@ -119,9 +119,9 @@ export default function PlaceBetPage() {
           // Обновляем отладочную информацию
           setDebugInfo(prev => ({ ...prev, noUser: true }));
           
-          // Если пользователь не авторизован, перенаправляем на страницу входа
-          console.log('User not authenticated, redirecting to sign in');
-          router.push(`/${localeStr}/auth/signin?redirectTo=/${localeStr}/events/${eventIdStr}/bet?prediction=${prediction ? 'yes' : 'no'}`);
+          // Если пользователь не авторизован, перенаправляем на страницу регистрации
+          console.log('User not authenticated, redirecting to signup');
+          router.push(`/${localeStr}/auth/signup?redirectTo=/${localeStr}/events/${eventIdStr}/bet?prediction=${prediction ? 'yes' : 'no'}`);
           return;
         }
 

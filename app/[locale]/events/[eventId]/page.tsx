@@ -294,13 +294,13 @@ const getEventStats = () => {
               ) : (
                 <div className="space-y-4">
                   <Button className="w-full h-16 text-lg" asChild>
-                    <Link href={`/${localeStr}/events/${eventIdStr}/bet?prediction=yes`}>
+                    <Link href={user ? `/${localeStr}/events/${eventIdStr}/bet?prediction=yes` : `/${localeStr}/auth/signup?redirectTo=/${localeStr}/events/${eventIdStr}`}>
                       {t('common.yes')} ({stats.yesProbability}%)
                     </Link>
                   </Button>
                   
                   <Button variant="outline" className="w-full h-16 text-lg" asChild>
-                    <Link href={`/${localeStr}/events/${eventIdStr}/bet?prediction=no`}>
+                    <Link href={user ? `/${localeStr}/events/${eventIdStr}/bet?prediction=no` : `/${localeStr}/auth/signup?redirectTo=/${localeStr}/events/${eventIdStr}`}>
                       {t('common.no')} ({stats.noProbability}%)
                     </Link>
                   </Button>
