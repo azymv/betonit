@@ -212,12 +212,12 @@ const getEventStats = () => {
                 onError={(e) => {
                   // If the image fails to load, replace with the placeholder
                   const target = e.target as HTMLImageElement;
-                  target.src = '/images/events/placeholder.jpg';
+                  target.src = '/images/events/event_placeholder.png';
                 }}
               />
             ) : (
               <Image 
-                src="/images/events/placeholder.jpg" 
+                src="/images/events/event_placeholder.png" 
                 alt="Placeholder image"
                 fill
                 style={{ objectFit: 'cover' }}

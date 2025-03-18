@@ -75,7 +75,7 @@ export default function EventForm() {
       title: '',
       description: '',
       short_description: '',
-      image_url: '/images/events/placeholder.jpg', // Значение по умолчанию
+      image_url: '/images/events/event_placeholder.png', // Значение по умолчанию
       category: '',
       start_time: new Date().toISOString().slice(0, 16), // Текущая дата в формате YYYY-MM-DDTHH:MM
       end_time: new Date(new Date().setDate(new Date().getDate() + 30)).toISOString().slice(0, 16), // +30 дней

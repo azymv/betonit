@@ -87,7 +87,7 @@ export async function seedEvents() {
         title: 'Will Bitcoin reach $100k by the end of 2024?',
         description: 'Make a prediction about Bitcoin\'s price movement by the end of 2024.',
         short_description: 'Bitcoin price prediction for 2024',
-        image_url: '/images/events/placeholder.jpg',
+        image_url: '/images/events/event_placeholder.png',
         category: 'cryptocurrency',
         start_time: new Date().toISOString(),
         end_time: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
@@ -97,7 +97,7 @@ export async function seedEvents() {
         title: 'Will AI surpass human intelligence by 2025?',
         description: 'Predict if artificial intelligence will achieve general intelligence by 2025.',
         short_description: 'AI development prediction',
-        image_url: '/images/events/placeholder.jpg',
+        image_url: '/images/events/event_placeholder.png',
         category: 'technology',
         start_time: new Date().toISOString(),
         end_time: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(), // 60 days from now
@@ -107,7 +107,7 @@ export async function seedEvents() {
         title: 'Will Mars colonization begin in 2025?',
         description: 'Predict if the first human mission to Mars will be launched in 2025.',
         short_description: 'Mars colonization prediction',
-        image_url: '/images/events/placeholder.jpg',
+        image_url: '/images/events/event_placeholder.png',
         category: 'science',
         start_time: new Date().toISOString(),
         end_time: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(), // 90 days from now

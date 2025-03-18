@@ -40,7 +40,7 @@ export default function AdminPage() {
         title: 'Test Event',
         description: 'This is a test event created by the admin panel.',
         short_description: 'Test event',
-        image_url: '/images/events/placeholder.jpg',
+        image_url: '/images/events/event_placeholder.png',
         category: 'other',
         start_time: new Date().toISOString(),
         end_time: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days from now
