@@ -11,7 +11,7 @@ type UserRankCardProps = {
   score: number;
   totalUsers: number;
   locale: string;
-  t: (key: string, params?: Record<string, string | number>) => string;
+  t: (key: string) => string;
 };
 
 export default function UserRankCard({
@@ -32,6 +32,14 @@ export default function UserRankCard({
   // Форматирует число с разделителями тысяч
   const formatNumber = (num: number) => {
     return new Intl.NumberFormat(locale).format(num);
+  };
+  
+  // Функция для форматирования строк с параметрами
+  const formatString = (str: string, params: Record<string, string | number>) => {
+    return Object.entries(params).reduce(
+      (result, [key, value]) => result.replace(`{${key}}`, String(value)),
+      str
+    );
   };
   
   // Определяет текстовое описание ранга
@@ -69,7 +77,7 @@ export default function UserRankCard({
           <div className="text-right">
             <div className="text-2xl font-bold">{formatNumber(rank)}</div>
             <div className="text-sm text-muted-foreground">
-              {t('leaderboard.outOf', { total: formatNumber(totalUsers) })}
+              {formatString(t('leaderboard.outOf'), { total: formatNumber(totalUsers) })}
             </div>
           </div>
         </div>
