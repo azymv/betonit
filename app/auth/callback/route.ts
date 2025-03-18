@@ -6,107 +6,108 @@ import { createUserProfile } from '@/lib/actions/auth-actions';
 import { defaultLocale } from '@/lib/i18n-config';
 
 export async function GET(request: NextRequest) {
-  try {
-    const requestUrl = new URL(request.url);
-    console.log("AUTH CALLBACK HANDLER TRIGGERED:", requestUrl.toString());
-    
-    // Get code and error params
-    const code = requestUrl.searchParams.get('code');
-    const error = requestUrl.searchParams.get('error');
-    
-    // Get additional context params
-    const redirectTo = requestUrl.searchParams.get('redirect_to') || '/';
-    const locale = requestUrl.searchParams.get('locale') || defaultLocale;
-    
-    // Log complete request context
-    console.log("Auth callback params:", {
-      code: code ? "present" : "absent",
-      error: error || "none",
-      redirectTo,
-      locale,
-      allParams: Object.fromEntries(requestUrl.searchParams.entries())
-    });
-    
-    // Check for authentication errors
-    if (error) {
-      console.error("Auth error:", error);
-      return NextResponse.redirect(new URL(`/${locale}/auth/error`, requestUrl.origin));
-    }
-    
-    // Initialize Supabase client
-    const supabase = createRouteHandlerClient({ cookies });
-    
-    // If we have a code, exchange it for a session
-    if (code) {
-      console.log("Exchanging code for session...");
+  const requestUrl = new URL(request.url);
+  console.log("Auth callback URL:", requestUrl.toString());
+  
+  // Check for code in search params or error
+  const code = requestUrl.searchParams.get('code');
+  const error = requestUrl.searchParams.get('error');
+  const errorCode = requestUrl.searchParams.get('error_code');
+  const errorDesc = requestUrl.searchParams.get('error_description');
+  
+  // Get referral ID from URL if present
+  const refId = requestUrl.searchParams.get('ref_id');
+  if (refId) {
+    console.log("Got referral ID from URL:", refId);
+  } else {
+    console.log("No referral ID found in URL params");
+  }
+  
+  // Log the full URL and all search params for debugging
+  console.log("Full callback URL:", requestUrl.toString());
+  console.log("All URL search params:", Object.fromEntries(requestUrl.searchParams.entries()));
+  
+  // Log any errors from Supabase
+  if (error || errorCode || errorDesc) {
+    console.error("Auth callback error:", { error, errorCode, errorDesc });
+    return NextResponse.redirect(new URL(`/${defaultLocale}/auth/error`, requestUrl.origin));
+  }
+  
+  // Handle auth code exchange
+  if (code) {
+    try {
+      console.log("Processing auth code");
+      const supabase = createRouteHandlerClient({ cookies });
       
+      // Exchange code for session
       const { data, error } = await supabase.auth.exchangeCodeForSession(code);
       
       if (error) {
-        console.error("Session exchange error:", error);
-        return NextResponse.redirect(new URL(`/${locale}/auth/error`, requestUrl.origin));
+        console.error("Error exchanging code for session:", error);
+        return NextResponse.redirect(new URL(`/${defaultLocale}/auth/error`, requestUrl.origin));
       }
       
-      if (!data.user) {
-        console.error("No user returned from session exchange");
-        return NextResponse.redirect(new URL(`/${locale}/auth/error`, requestUrl.origin));
-      }
-      
-      // Log successful authentication
-      console.log("Authentication successful:", {
-        user_id: data.user.id,
-        email: data.user.email,
-        provider: data.user.app_metadata?.provider
-      });
-      
-      // Determine if this is OAuth flow
-      const isOAuth = data.user.app_metadata?.provider !== 'email';
-      
-      if (isOAuth) {
-        console.log("Processing OAuth login (Google, etc)");
+      if (data.user) {
+        console.log("User authenticated:", data.user.id);
+        console.log("User metadata:", data.user.user_metadata);
         
-        // Force profile creation for OAuth users
+        // Обработка реферального кода
+        const referredBy = data.user.user_metadata?.referred_by;
+        
+        if (referredBy) {
+          console.log("User referred by:", referredBy);
+        }
+        
+        // Создаем профиль пользователя
         try {
-          // Prepare user data from OAuth profile
-          const userData = {
-            email: data.user.email || '',
-            username: data.user.user_metadata?.name
-              ? data.user.user_metadata.name.replace(/\s+/g, '_').toLowerCase()
-              : data.user.email?.split('@')[0] || 'user',
-            full_name: data.user.user_metadata?.name || data.user.user_metadata?.full_name,
-            language: locale || defaultLocale
-          };
-          
-          console.log("Creating/updating profile for OAuth user:", userData);
-          
-          // Explicitly create or update the user profile
-          const result = await createUserProfile(data.user.id, userData);
+          // Если в метаданных есть referred_by, передаем его в createUserProfile
+          const result = await createUserProfile(data.user.id, {
+            email: data.user.email as string,
+            username: data.user.user_metadata?.username,
+            full_name: data.user.user_metadata?.full_name,
+            language: data.user.user_metadata?.language,
+            referred_by: refId || referredBy // Используем URL параметр или метаданные
+          });
           
           if (result.error) {
-            console.error("Error creating profile:", result.error);
+            console.error("Error creating user profile:", result.error);
           } else {
-            console.log("Profile created/updated successfully for OAuth user");
+            console.log("User profile created successfully");
+            
+            // Если указан реферер, обновляем поле referred_by в базе данных
+            if (referredBy || refId) {
+              try {
+                const { error: updateError } = await supabase
+                  .from('users')
+                  .update({ referred_by: refId || referredBy })
+                  .eq('id', data.user.id);
+                
+                if (updateError) {
+                  console.error("Error updating referred_by:", updateError);
+                } else {
+                  console.log("Successfully updated referred_by field");
+                }
+              } catch (refError) {
+                console.error("Exception updating referred_by:", refError);
+              }
+            }
           }
         } catch (profileError) {
-          console.error("Profile creation error:", profileError);
+          console.error("Exception in createUserProfile:", profileError);
         }
       } else {
-        console.log("Email authentication, profile will be created separately");
+        console.error("No user found after code exchange");
       }
-    } else {
-      console.error("No auth code provided");
-      return NextResponse.redirect(new URL(`/${locale}/auth/error`, requestUrl.origin));
+    } catch (error) {
+      console.error("Exception in auth callback:", error);
+      return NextResponse.redirect(new URL(`/${defaultLocale}/auth/error`, requestUrl.origin));
     }
-    
-    // Determine where to redirect the user
-    const finalPath = redirectTo.startsWith('/') ? redirectTo : `/${redirectTo}`;
-    const finalUrl = new URL(`${finalPath}`, requestUrl.origin);
-    
-    console.log("Redirecting to:", finalUrl.toString());
-    
-    return NextResponse.redirect(finalUrl);
-  } catch (err) {
-    console.error("Unhandled exception in auth callback:", err);
-    return NextResponse.redirect(new URL(`/en/auth/error`, request.url));
+  } else {
+    console.error("No code found in auth callback URL");
+    return NextResponse.redirect(new URL(`/${defaultLocale}/auth/error`, requestUrl.origin));
   }
+
+  // Redirect to success page after verification
+  console.log("Auth callback completed, redirecting to success page");
+  return NextResponse.redirect(new URL(`/${defaultLocale}/auth/success`, requestUrl.origin));
 }

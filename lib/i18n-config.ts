@@ -48,33 +48,17 @@ export function getTranslation(locale: string, key: string): string {
       'auth.signup.signin': 'Sign In',
       'auth.signup.success': 'Account created successfully! Check your email for verification link.',
       
-      // Auth Google
-      'auth.continueWithGoogle': 'Continue with Google',
-      'auth.signupWithGoogle': 'Sign up with Google',
-      'auth.orContinueWith': 'Or continue with',
-      'auth.orEnterDetails': 'Or enter your details',
-      'auth.enterEmailPassword': 'Enter your email and password',
-      'auth.noAccount': 'Don\'t have an account?',
-      'auth.createAccount': 'Create an account',
-      'auth.haveAccount': 'Already have an account?',
-      'auth.signIn': 'Sign in',
-      'auth.verifyEmailTitle': 'Check your email',
-      'auth.verifyEmailDescription': 'We\'ve sent you a verification link. Please check your email to confirm your account.',
-      'auth.resendEmail': 'Resend verification email',
-      'auth.resendingEmail': 'Sending...',
-      'auth.emailResent': 'Verification email has been resent. Please check your inbox.',
-      
-      // Auth error
-      'auth.error.title': 'Authentication Error',
-      'auth.error.description': 'There was a problem with your authentication',
-      'auth.error.message': 'We couldn\'t complete the authentication process. This may be due to an expired link or a server issue.',
-      'auth.error.tryAgain': 'Try Again',
+// Auth error
+'auth.error.title': 'Authentication Error',
+'auth.error.description': 'There was a problem with your authentication',
+'auth.error.message': 'We couldn\'t complete the authentication process. This may be due to an expired link or a server issue.',
+'auth.error.tryAgain': 'Try Again',
 
-      // Auth success
-      'auth.success.title': 'Account Verified!',
-      'auth.success.description': 'Your email has been successfully verified. You can now sign in to your account.',
-      'auth.signup.referralApplied': 'Referral bonus will be applied after registration!',
-      'auth.success.goToProfile': 'Go to Profile',
+// Auth success
+'auth.success.title': 'Account Verified!',
+'auth.success.description': 'Your email has been successfully verified. You can now sign in to your account.',
+'auth.signup.referralApplied': 'Referral bonus will be applied after registration!',
+'auth.success.goToProfile': 'Go to Profile',
 
       // Home page
       'home.title': 'Predict. Win. Earn.',
@@ -266,27 +250,11 @@ export function getTranslation(locale: string, key: string): string {
       'auth.signup.submit': 'Создать аккаунт',
       'auth.signup.hasAccount': 'Уже есть аккаунт?',
       'auth.signup.signin': 'Войти',
-      'auth.signup.success': 'Аккаунт успешно создан! Проверьте вашу почту для подтверждения.',
-      
-      // Auth Google
-      'auth.continueWithGoogle': 'Войти через Google',
-      'auth.signupWithGoogle': 'Зарегистрироваться через Google',
-      'auth.orContinueWith': 'Или продолжить с',
-      'auth.orEnterDetails': 'Или введите ваши данные',
-      'auth.enterEmailPassword': 'Введите ваш email и пароль',
-      'auth.noAccount': 'Ещё нет аккаунта?',
-      'auth.createAccount': 'Создать аккаунт',
-      'auth.haveAccount': 'Уже есть аккаунт?',
-      'auth.signIn': 'Войти',
-      'auth.verifyEmailTitle': 'Проверьте вашу почту',
-      'auth.verifyEmailDescription': 'Мы отправили вам ссылку для подтверждения. Пожалуйста, проверьте ваш email.',
-      'auth.resendEmail': 'Отправить письмо повторно',
-      'auth.resendingEmail': 'Отправка...',
-      'auth.emailResent': 'Письмо с подтверждением отправлено повторно. Проверьте вашу почту.',
-      
+      'auth.signup.success': 'Аккаунт успешно создан! Проверьте email для подтверждения.',
+
       // Auth error
       'auth.error.title': 'Ошибка аутентификации',
-      'auth.error.description': 'Произошла проблема при аутентификации',
+      'auth.error.description': 'Возникла проблема с вашей аутентификацией',
       'auth.error.message': 'Мы не смогли завершить процесс аутентификации. Это может быть связано с истекшей ссылкой или проблемой на сервере.',
       'auth.error.tryAgain': 'Попробовать снова',
 
@@ -310,6 +278,7 @@ export function getTranslation(locale: string, key: string): string {
       'home.step3_title': 'Получи выигрыш',
       'home.step3_description': 'Если твой прогноз верен, ты получишь выигрыш автоматически после исхода события',
       
+      // Events
       // Events
       'events.allEvents': 'Все события',
       'events.categories.politics': 'Политика',
