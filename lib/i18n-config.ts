@@ -52,6 +52,8 @@ export function getTranslation(locale: string, key: string): string {
       'auth.continueWithGoogle': 'Continue with Google',
       'auth.signupWithGoogle': 'Sign up with Google',
       'auth.orContinueWith': 'Or continue with',
+      'auth.orEnterDetails': 'Or enter your details',
+      'auth.enterEmailPassword': 'Enter your email and password',
       'auth.noAccount': 'Don\'t have an account?',
       'auth.createAccount': 'Create an account',
       'auth.haveAccount': 'Already have an account?',
@@ -270,6 +272,8 @@ export function getTranslation(locale: string, key: string): string {
       'auth.continueWithGoogle': 'Войти через Google',
       'auth.signupWithGoogle': 'Зарегистрироваться через Google',
       'auth.orContinueWith': 'Или продолжить с',
+      'auth.orEnterDetails': 'Или введите ваши данные',
+      'auth.enterEmailPassword': 'Введите ваш email и пароль',
       'auth.noAccount': 'Ещё нет аккаунта?',
       'auth.createAccount': 'Создать аккаунт',
       'auth.haveAccount': 'Уже есть аккаунт?',
@@ -282,7 +286,7 @@ export function getTranslation(locale: string, key: string): string {
       
       // Auth error
       'auth.error.title': 'Ошибка аутентификации',
-      'auth.error.description': 'Возникла проблема с вашей аутентификацией',
+      'auth.error.description': 'Произошла проблема при аутентификации',
       'auth.error.message': 'Мы не смогли завершить процесс аутентификации. Это может быть связано с истекшей ссылкой или проблемой на сервере.',
       'auth.error.tryAgain': 'Попробовать снова',
 

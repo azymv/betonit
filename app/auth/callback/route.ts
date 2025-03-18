@@ -24,6 +24,9 @@ export async function GET(request: NextRequest) {
   const refId = requestUrl.searchParams.get('ref_id');
   const locale = requestUrl.searchParams.get('locale') || defaultLocale;
   
+  // Флаг для определения, является ли аутентификация через OAuth
+  let isOAuthFlow = false;
+  
   if (ref) {
     console.log("Got referral code from URL:", ref);
   } else if (refId) {
@@ -61,22 +64,30 @@ export async function GET(request: NextRequest) {
         console.log("User metadata:", data.user.user_metadata);
         console.log("Authentication provider:", data.user.app_metadata?.provider);
         
-        const isOAuthProvider = data.user.app_metadata?.provider && 
-                               data.user.app_metadata.provider !== 'email';
+        // Определяем, использовал ли пользователь провайдер OAuth
+        isOAuthFlow = !!(data.user.app_metadata?.provider && 
+                      data.user.app_metadata.provider !== 'email');
         
-        // Проверяем, существует ли уже профиль пользователя
+        console.log("Is OAuth authentication:", isOAuthFlow);
+        
+        // Проверяем, существует ли уже профиль пользователя в нашей базе
         const { data: existingProfile, error: profileError } = await supabase
           .from('users')
           .select('id, username, language')
           .eq('id', data.user.id)
           .single();
         
-        if (profileError && profileError.code !== 'PGRST116') { // PGRST116 = запись не найдена
+        // PGRST116 означает, что запись не найдена
+        const isNewUser = profileError && profileError.code === 'PGRST116';
+        
+        if (profileError && profileError.code !== 'PGRST116') {
           console.error("Error checking user profile:", profileError);
         }
         
-        // Если профиль не существует или мы используем OAuth, создаем/обновляем профиль
-        if (!existingProfile || isOAuthProvider) {
+        // Создаем или обновляем профиль в следующих случаях:
+        // 1. Это новый пользователь (профиль не существует)
+        // 2. Это существующий пользователь, использующий OAuth
+        if (isNewUser || isOAuthFlow) {
           // Получаем информацию о реферере из метаданных или URL
           let referredBy = data.user.user_metadata?.referred_by;
           
@@ -100,22 +111,28 @@ export async function GET(request: NextRequest) {
             }
           }
           
+          // Извлекаем имя пользователя и полное имя из данных провайдера
+          const providerName = data.user.user_metadata?.name 
+                            || data.user.user_metadata?.full_name 
+                            || null;
+          
           // Формируем данные пользователя из метаданных или OAuth профиля
           const userData = {
             email: data.user.email as string,
             username: data.user.user_metadata?.username || 
-                     (data.user.user_metadata?.name ? 
-                      data.user.user_metadata.name.replace(/\s+/g, '_').toLowerCase() : 
+                     (providerName ? 
+                      providerName.replace(/\s+/g, '_').toLowerCase() : 
                       data.user.email?.split('@')[0]),
             full_name: data.user.user_metadata?.full_name || 
-                      data.user.user_metadata?.name || 
-                      data.user.user_metadata?.full_name,
+                      providerName,
             language: data.user.user_metadata?.language || 
                      locale || 
-                     existingProfile?.language || 
+                     (existingProfile ? existingProfile.language : null) || 
                      defaultLocale,
             referred_by: referredBy || refId || null
           };
+          
+          console.log("Creating/updating user profile with data:", userData);
           
           // Создаем или обновляем профиль пользователя
           try {
@@ -144,14 +161,29 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL(`/${locale}/auth/error`, requestUrl.origin));
   }
 
-  // Если указан URL для перенаправления, используем его
+  // Определяем куда перенаправить пользователя после аутентификации
+  let finalRedirectUrl: URL;
+  
+  // Если это OAuth аутентификация (Google и другие провайдеры),
+  // перенаправляем пользователя на страницу профиля
+  if (isOAuthFlow) {
+    // Перенаправляем в профиль пользователя, если не указано иное
+    finalRedirectUrl = redirectTo 
+      ? new URL(redirectTo.startsWith('/') ? redirectTo : `/${redirectTo}`, requestUrl.origin)
+      : new URL(`/${locale}/profile`, requestUrl.origin);
+      
+    console.log("OAuth flow completed, redirecting to:", finalRedirectUrl.toString());
+    return NextResponse.redirect(finalRedirectUrl);
+  }
+  
+  // Для обычной email аутентификации сохраняем исходную логику
   if (redirectTo) {
-    const finalRedirectUrl = new URL(redirectTo.startsWith('/') ? redirectTo : `/${redirectTo}`, requestUrl.origin);
+    finalRedirectUrl = new URL(redirectTo.startsWith('/') ? redirectTo : `/${redirectTo}`, requestUrl.origin);
     console.log("Redirecting to specified URL:", finalRedirectUrl.toString());
     return NextResponse.redirect(finalRedirectUrl);
   }
   
-  // Иначе перенаправляем на страницу успешной авторизации
-  console.log("Auth callback completed, redirecting to success page");
+  // Иначе перенаправляем на страницу успешной авторизации для подтверждения email
+  console.log("Email authentication flow completed, redirecting to success page");
   return NextResponse.redirect(new URL(`/${locale}/auth/success`, requestUrl.origin));
 }

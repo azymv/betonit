@@ -228,14 +228,20 @@ export function AuthForm({ type, redirectPath = '/' }: AuthFormProps) {
       setError(null);
       
       const referralCode = formData.referralCode || searchParams.get('ref') || '';
+      const redirectParam = searchParams.get('redirectTo') || redirectPath;
       
       // Сохраняем реферальный код для использования после авторизации
       if (referralCode) {
         sessionStorage.setItem('referralCode', referralCode);
       }
       
+      // Создаем URL для редиректа с путем перенаправления после OAuth
+      const redirectUrl = redirectParam 
+        ? `/auth/callback?redirect_to=${encodeURIComponent(redirectParam)}`
+        : `/auth/callback?redirect_to=/${locale}/profile`;
+      
       // Вызываем авторизацию через Google из контекста
-      const { error } = await signInWithGoogle(`/auth/callback?redirect_to=/${locale}${redirectPath}`, {
+      const { error } = await signInWithGoogle(redirectUrl, {
         locale: locale,
         referralCode: referralCode
       });
@@ -245,9 +251,9 @@ export function AuthForm({ type, redirectPath = '/' }: AuthFormProps) {
     } catch (err) {
       console.error('Google auth error:', err);
       setError(err instanceof Error ? err.message : 'An error occurred during Google authentication');
-    } finally {
-      setIsGoogleLoading(false);
+      setIsGoogleLoading(false); // Сбрасываем состояние загрузки в случае ошибки
     }
+    // Не сбрасываем setIsGoogleLoading(false) здесь, так как перенаправление происходит автоматически
   };
   
   return (
@@ -316,7 +322,7 @@ export function AuthForm({ type, redirectPath = '/' }: AuthFormProps) {
           </Alert>
         ) : (
           <>
-            {/* Google Sign In Button */}
+            {/* Google Sign In Button - всегда первый элемент */}
             <Button 
               variant="outline" 
               type="button" 
@@ -364,7 +370,10 @@ export function AuthForm({ type, redirectPath = '/' }: AuthFormProps) {
               </div>
               <div className="relative flex justify-center text-sm">
                 <span className="px-2 bg-white text-gray-500">
-                  {t('auth.orContinueWith') || 'Or continue with'}
+                  {type === 'signin' 
+                    ? t('auth.enterEmailPassword') || 'Enter your email and password'
+                    : t('auth.orEnterDetails') || 'Or enter your details'
+                  }
                 </span>
               </div>
             </div>
@@ -500,7 +509,7 @@ export function AuthForm({ type, redirectPath = '/' }: AuthFormProps) {
                     {type === 'signin' ? t('auth.signin.loading') : t('auth.signup.loading')}
                   </>
                 ) : (
-                  type === 'signin' ? t('auth.signin.submit') : t('auth.signup.submit')
+                  type === 'signin' ? t('auth.signin.submit') : ''
                 )}
               </Button>
             </form>
