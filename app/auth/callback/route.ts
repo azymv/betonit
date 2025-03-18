@@ -65,10 +65,21 @@ export async function GET(request: NextRequest) {
         console.log("Authentication provider:", data.user.app_metadata?.provider);
         
         // Определяем, использовал ли пользователь провайдер OAuth
-        isOAuthFlow = !!(data.user.app_metadata?.provider && 
-                      data.user.app_metadata.provider !== 'email');
+        // Измененная логика определения OAuth аутентификации
+        isOAuthFlow = data.user.app_metadata?.provider !== undefined && 
+                      data.user.app_metadata.provider !== 'email';
         
         console.log("Is OAuth authentication:", isOAuthFlow);
+        
+        // Добавляем более подробное логирование данных пользователя
+        console.log("Full user data:", {
+          id: data.user.id,
+          email: data.user.email,
+          app_metadata: data.user.app_metadata,
+          user_metadata: data.user.user_metadata,
+          provider: data.user.app_metadata?.provider,
+          isOAuthFlow
+        });
         
         // Проверяем, существует ли уже профиль пользователя в нашей базе
         const { data: existingProfile, error: profileError } = await supabase
@@ -84,9 +95,7 @@ export async function GET(request: NextRequest) {
           console.error("Error checking user profile:", profileError);
         }
         
-        // Создаем или обновляем профиль в следующих случаях:
-        // 1. Это новый пользователь (профиль не существует)
-        // 2. Это существующий пользователь, использующий OAuth
+        // Упрощенное условие: создаем или обновляем профиль для новых пользователей или OAuth
         if (isNewUser || isOAuthFlow) {
           // Получаем информацию о реферере из метаданных или URL
           let referredBy = data.user.user_metadata?.referred_by;
@@ -133,6 +142,9 @@ export async function GET(request: NextRequest) {
           };
           
           console.log("Creating/updating user profile with data:", userData);
+          
+          // Добавляем более подробное логирование перед созданием профиля
+          console.log("Creating profile with final data:", userData);
           
           // Создаем или обновляем профиль пользователя
           try {
