@@ -10,17 +10,22 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useTranslation, locales } from "@/lib/i18n-config";
-import { Home, Trophy, Calendar, LogOut, ChevronDown, Menu, Globe } from "lucide-react";
+import { Home, Trophy, Calendar, LogOut, ChevronDown, Menu, Globe, Coins } from "lucide-react";
 import { useAuth } from "@/lib/context/auth-context";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { Database } from "@/lib/types/supabase";
 
 export function Header({ locale }: { locale: string }) {
   const { t } = useTranslation(locale);
   const { user, isLoading, signOut } = useAuth();
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [balance, setBalance] = useState<number | null>(null);
+  const [isBalanceLoading, setIsBalanceLoading] = useState(false);
+  const supabase = createClientComponentClient<Database>();
 
   const navItems = [
     {
@@ -39,6 +44,43 @@ export function Header({ locale }: { locale: string }) {
       icon: Trophy,
     },
   ];
+
+  // Функция для загрузки баланса пользователя
+  useEffect(() => {
+    const fetchUserBalance = async () => {
+      if (!user || isLoading) return;
+      
+      setIsBalanceLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('balances')
+          .select('amount')
+          .eq('user_id', user.id)
+          .eq('currency', 'coins')
+          .single();
+        
+        if (error) {
+          console.error('Error fetching balance:', error);
+          setBalance(null);
+        } else {
+          setBalance(data?.amount || 0);
+        }
+      } catch (err) {
+        console.error('Exception fetching balance:', err);
+        setBalance(null);
+      } finally {
+        setIsBalanceLoading(false);
+      }
+    };
+
+    fetchUserBalance();
+  }, [user, isLoading, supabase]);
+
+  // Функция для форматирования числа с разделителями
+  const formatNumber = (num: number | null) => {
+    if (num === null) return "0";
+    return new Intl.NumberFormat(locale === 'en' ? 'en-US' : 'ru-RU').format(num);
+  };
 
   // Функция для смены языка с сохранением текущего пути
   const getLocalePath = (newLocale: string) => {
@@ -59,7 +101,7 @@ export function Header({ locale }: { locale: string }) {
   };
 
   return (
-    <header className="bg-black text-white fixed top-0 left-0 right-0 z-50">
+    <header className={`bg-black text-white fixed top-0 left-0 right-0 z-50 ${user ? 'shadow-none' : ''}`}>
       <div className="container mx-auto px-4 py-3 flex justify-between items-center">
         {/* Логотип и десктопная навигация */}
         <div className="flex items-center">
@@ -149,17 +191,6 @@ export function Header({ locale }: { locale: string }) {
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <div className="flex items-center space-x-2 cursor-pointer hover:bg-gray-800 hover:text-secondary rounded-md px-2 py-1">
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage 
-                            src={user.user_metadata?.avatar_url || ""} 
-                            alt={user.user_metadata?.username || "User"} 
-                          />
-                          <AvatarFallback className="bg-gray-700 text-white">
-                            {user.user_metadata?.username 
-                              ? user.user_metadata.username[0].toUpperCase() 
-                              : user.email ? user.email[0].toUpperCase() : "U"}
-                          </AvatarFallback>
-                        </Avatar>
                         <span className="text-sm font-medium">
                           {user.user_metadata?.username || user.email?.split('@')[0] || "User"}
                         </span>
@@ -169,7 +200,23 @@ export function Header({ locale }: { locale: string }) {
                     <DropdownMenuContent align="end" className="bg-gray-900 text-white border-gray-700">
                       <DropdownMenuItem asChild className="hover:bg-gray-800 hover:text-primary focus:text-primary">
                         <Link href={`/${locale}/profile`}>
+                          <Avatar className="h-4 w-4 mr-2">
+                            <AvatarFallback className="bg-gray-700 text-white text-xs">
+                              {user.user_metadata?.username 
+                                ? user.user_metadata.username[0].toUpperCase() 
+                                : user.email ? user.email[0].toUpperCase() : "U"}
+                            </AvatarFallback>
+                          </Avatar>
                           {t("nav.profile")}
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild className="hover:bg-gray-800 hover:text-primary focus:text-primary">
+                        <Link href={`/${locale}/profile`}>
+                          <Coins className="h-4 w-4 mr-2 text-yellow-400" />
+                          <span>Balance: {isBalanceLoading ? 
+                            <span className="inline-block w-10 h-4 bg-gray-700 animate-pulse rounded ml-1"></span> : 
+                            formatNumber(balance)}
+                          </span>
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuSeparator className="bg-gray-700" />
@@ -211,7 +258,7 @@ export function Header({ locale }: { locale: string }) {
                 {isMobileMenuOpen && (
                   <div className="fixed inset-0 z-50 bg-black bg-opacity-90" onClick={() => setIsMobileMenuOpen(false)}>
                     <div 
-                      className="absolute right-0 top-0 h-full w-3/4 max-w-xs bg-gray-900 p-4 shadow-lg"
+                      className="absolute right-0 top-0 h-full w-2/3 max-w-xs bg-gray-900 p-4 shadow-lg"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <div className="flex flex-col h-full">
@@ -279,6 +326,19 @@ export function Header({ locale }: { locale: string }) {
                               </Avatar>
                               <span>{t("nav.profile")}</span>
                             </Link>
+                            <div className="flex items-center space-x-3 p-2 rounded-md text-gray-300">
+                              <Coins className="h-5 w-5 text-yellow-400" />
+                              <Link 
+                                href={`/${locale}/profile`}
+                                className="text-gray-300 hover:text-white"
+                                onClick={handleNavigation}
+                              >
+                                {isBalanceLoading ? 
+                                  <span className="inline-block w-16 h-5 bg-gray-700 animate-pulse rounded"></span> : 
+                                  formatNumber(balance)
+                                }
+                              </Link>
+                            </div>
                             <button 
                               onClick={handleSignOut}
                               className="flex items-center space-x-3 p-2 rounded-md text-red-400 hover:bg-gray-800 hover:text-red-300 w-full text-left"

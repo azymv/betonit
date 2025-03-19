@@ -50,7 +50,7 @@ export default function LocaleLayout({
         <AnalyticsProvider>
           <AuthProvider>
             <Header locale={params.locale} />
-            <main className="flex-grow pt-16">{children}</main>
+            <main className="flex-grow pt-[60px]">{children}</main>
             <Footer locale={params.locale} />
           </AuthProvider>
         </AnalyticsProvider>
