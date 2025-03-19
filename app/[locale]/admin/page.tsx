@@ -5,11 +5,13 @@ import { useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Loader2, Database, Check, Plus, RefreshCcw, Trophy, BarChart } from 'lucide-react';
+import { Loader2, Database, Check, Plus, RefreshCcw, Trophy, BarChart, Trash } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { createEvent } from '@/lib/actions/seed-events';
 import { updateLeaderboardRanksAdmin } from '@/lib/actions/leaderboard-actions';
 import EventForm from '@/components/admin/EventForm';
+import EventsList from '@/components/admin/EventsList';
+import AdminAuth from '@/components/admin/AdminAuth';
 import { Event } from '@/lib/types/event';
 
 // Define a type for the result state
@@ -33,6 +35,23 @@ export default function AdminPage() {
   const [isSeedLoading, setIsSeedLoading] = useState(false);
   const [isRankUpdateLoading, setIsRankUpdateLoading] = useState(false);
   const [result, setResult] = useState<AdminResult | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  
+  // Обработчик успешного результата операции
+  const handleSuccess = (message: string) => {
+    setResult({
+      success: true,
+      message
+    });
+  };
+  
+  // Обработчик ошибки
+  const handleError = (error: string) => {
+    setResult({
+      success: false,
+      error
+    });
+  };
   
   // Функция для создания тестовых событий
   const createTestEvents = async () => {
@@ -139,12 +158,42 @@ export default function AdminPage() {
     }
   };
   
+  // Если пользователь не аутентифицирован, показываем форму входа
+  if (!isAuthenticated) {
+    return <AdminAuth onAuthenticated={() => setIsAuthenticated(true)} />;
+  }
+  
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-8">Админ-панель</h1>
       
-      <Tabs defaultValue="create-event" className="mb-8">
+      {result && !result.success && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertTitle>Ошибка</AlertTitle>
+          <AlertDescription>{result.error}</AlertDescription>
+        </Alert>
+      )}
+      
+      {result && result.success && (
+        <Alert className="mb-4 bg-green-50 border-green-200">
+          <Check className="h-4 w-4 text-green-600" />
+          <AlertTitle className="text-green-800">Успех</AlertTitle>
+          <AlertDescription className="text-green-700">
+            {result.message}
+            {result.eventsCount && (
+              <span className="block mt-1">
+                Количество созданных событий: <strong>{result.eventsCount}</strong>
+              </span>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
+      
+      <Tabs defaultValue="events" className="mb-8">
         <TabsList className="mb-4">
+          <TabsTrigger value="events" className="flex items-center gap-1">
+            <Trash className="h-4 w-4" /> Управление событиями
+          </TabsTrigger>
           <TabsTrigger value="create-event" className="flex items-center gap-1">
             <Plus className="h-4 w-4" /> Создать событие
           </TabsTrigger>
@@ -155,6 +204,13 @@ export default function AdminPage() {
             <Trophy className="h-4 w-4" /> Лидерборд
           </TabsTrigger>
         </TabsList>
+        
+        <TabsContent value="events">
+          <EventsList 
+            showSuccess={handleSuccess} 
+            showError={handleError} 
+          />
+        </TabsContent>
         
         <TabsContent value="create-event">
           <EventForm />
@@ -172,28 +228,6 @@ export default function AdminPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {result && !result.success && (
-                <Alert variant="destructive" className="mb-4">
-                  <AlertTitle>Ошибка</AlertTitle>
-                  <AlertDescription>{result.error}</AlertDescription>
-                </Alert>
-              )}
-              
-              {result && result.success && (
-                <Alert className="mb-4 bg-green-50 border-green-200">
-                  <Check className="h-4 w-4 text-green-600" />
-                  <AlertTitle className="text-green-800">Успех</AlertTitle>
-                  <AlertDescription className="text-green-700">
-                    {result.message}
-                    {result.eventsCount && (
-                      <span className="block mt-1">
-                        Количество созданных событий: <strong>{result.eventsCount}</strong>
-                      </span>
-                    )}
-                  </AlertDescription>
-                </Alert>
-              )}
-              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="border rounded-lg p-4">
                   <h3 className="text-lg font-medium mb-2">Создать одно тестовое событие</h3>
@@ -260,28 +294,6 @@ export default function AdminPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {result && !result.success && (
-                <Alert variant="destructive" className="mb-4">
-                  <AlertTitle>Ошибка</AlertTitle>
-                  <AlertDescription>{result.error}</AlertDescription>
-                </Alert>
-              )}
-              
-              {result && result.success && (
-                <Alert className="mb-4 bg-green-50 border-green-200">
-                  <Check className="h-4 w-4 text-green-600" />
-                  <AlertTitle className="text-green-800">Успех</AlertTitle>
-                  <AlertDescription className="text-green-700">
-                    {result.message}
-                    {result.timestamp && (
-                      <span className="block mt-1">
-                        Время обновления: <strong>{new Date(result.timestamp).toLocaleString()}</strong>
-                      </span>
-                    )}
-                  </AlertDescription>
-                </Alert>
-              )}
-              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="border rounded-lg p-4">
                   <h3 className="text-lg font-medium mb-2">Обновить ранги лидерборда</h3>

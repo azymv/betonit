@@ -59,6 +59,105 @@ export async function createEvent(formData: {
   }
 }
 
+/**
+ * Удаляет события по их идентификаторам
+ * @param eventIds Массив идентификаторов событий для удаления
+ */
+export async function deleteEvents(eventIds: string[]) {
+  // Проверка необходимых переменных окружения
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  
+  if (!supabaseUrl || !supabaseServiceKey) {
+    return { 
+      success: false, 
+      error: 'Missing required environment variables' 
+    };
+  }
+
+  if (!eventIds || eventIds.length === 0) {
+    return {
+      success: false,
+      error: 'No event IDs provided'
+    };
+  }
+
+  try {
+    // Инициализируем Supabase клиент с ролью сервиса для админских действий
+    const supabase = createClient<Database>(
+      supabaseUrl,
+      supabaseServiceKey
+    );
+
+    // Счетчик удаленных ставок
+    let totalDeletedBets = 0;
+
+    // Сначала удаляем все связанные ставки для каждого события
+    for (const eventId of eventIds) {
+      // Сначала проверяем, есть ли ставки на это событие
+      const { count, error: countError } = await supabase
+        .from('bets')
+        .select('*', { count: 'exact', head: true })
+        .eq('event_id', eventId);
+      
+      if (countError) {
+        console.error(`Error checking bets for event ${eventId}:`, countError);
+        return { success: false, error: `Failed to check related bets: ${countError.message}` };
+      }
+      
+      if (count && count > 0) {
+        console.log(`Found ${count} bets related to event ${eventId}. Deleting...`);
+        totalDeletedBets += count;
+        
+        // Удаляем ставки, связанные с этим событием
+        const { error: deleteError } = await supabase
+          .from('bets')
+          .delete()
+          .eq('event_id', eventId);
+        
+        if (deleteError) {
+          console.error(`Error deleting bets for event ${eventId}:`, deleteError);
+          return { success: false, error: `Failed to delete related bets: ${deleteError.message}` };
+        }
+      }
+    }
+
+    // Теперь удаляем события
+    const { error } = await supabase
+      .from('events')
+      .delete()
+      .in('id', eventIds);
+
+    if (error) {
+      console.error('Error deleting events:', error);
+      return { success: false, error: error.message };
+    }
+
+    // Обновляем кеш, чтобы изменения отобразились
+    revalidatePath('/events');
+    revalidatePath('/');
+    revalidatePath('/admin');
+
+    // Формируем сообщение об успешном удалении с учетом ставок
+    const message = totalDeletedBets > 0
+      ? `Successfully deleted ${eventIds.length} event(s) and ${totalDeletedBets} related bet(s)`
+      : `Successfully deleted ${eventIds.length} event(s)`;
+
+    return { 
+      success: true, 
+      message,
+      deletedCount: eventIds.length,
+      deletedBetsCount: totalDeletedBets
+    };
+  } catch (err) {
+    console.error('Exception in deleteEvents:', err);
+    return { 
+      success: false, 
+      error: err instanceof Error ? err.message : 'Unknown error occurred' 
+    };
+  }
+}
+
 export async function seedEvents() {
   const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
