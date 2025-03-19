@@ -151,6 +151,9 @@ export function getTranslation(locale: string, key: string, params?: Record<stri
       
       // Profile
       'profile.title': 'My Profile',
+      'profile.dashboard': 'My Dashboard',
+      'profile.social': 'Social',
+      'profile.settings': 'Settings',
       'profile.personalInfo': 'Personal Information',
       'profile.email': 'Email',
       'profile.username': 'Username',
@@ -258,9 +261,9 @@ export function getTranslation(locale: string, key: string, params?: Record<stri
       'nav.events': 'События',
       'nav.profile': 'Профиль',
       'nav.leaderboard': 'Рейтинг',
-      'nav.signin': 'Вход',
+      'nav.signin': 'Войти',
       'nav.signup': 'Регистрация',
-      'nav.signout': 'Выход',
+      'nav.signout': 'Выйти',
       'language.english': 'Английский',
       'language.russian': 'Русский',
       
@@ -400,6 +403,9 @@ export function getTranslation(locale: string, key: string, params?: Record<stri
       
       // Profile
       'profile.title': 'Мой профиль',
+      'profile.dashboard': 'Личный кабинет',
+      'profile.social': 'Сеть',
+      'profile.settings': 'Настройки',
       'profile.personalInfo': 'Персональная информация',
       'profile.email': 'Email',
       'profile.username': 'Имя пользователя',
