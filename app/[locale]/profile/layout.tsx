@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslation } from "@/lib/i18n-config";
-import { Home, User, Settings, BarChart3, Share2, Coins } from "lucide-react";
+import { User, Settings, BarChart3, Share2, Coins } from "lucide-react";
 import { useAuth } from "@/lib/context/auth-context";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { Database } from "@/lib/types/supabase";
@@ -108,7 +108,7 @@ export default function ProfileLayout({
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-black">
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex flex-col w-64 bg-gray-900 text-white">
+      <aside className="hidden md:flex flex-col w-64 bg-gray-900 text-white shrink-0">
         <div className="p-4 border-b border-gray-800">
           <div className="flex items-center space-x-2">
             <User className="h-5 w-5 text-gray-400" />
@@ -146,15 +146,6 @@ export default function ProfileLayout({
                 </li>
               );
             })}
-            <li className="pt-4 mt-4 border-t border-gray-800">
-              <Link 
-                href={`/${params.locale}`}
-                className="flex items-center space-x-3 p-2 rounded-md text-gray-300 hover:bg-gray-800 hover:text-white"
-              >
-                <Home className="h-5 w-5" />
-                <span>{t("nav.home") || "Home"}</span>
-              </Link>
-            </li>
           </ul>
         </nav>
       </aside>

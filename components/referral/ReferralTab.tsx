@@ -149,15 +149,15 @@ export function ReferralTab({ userId, locale }: ReferralTabProps) {
   return (
     <div className="space-y-6">
       {/* Описание реферальной программы */}
-      <div className="bg-slate-50 p-4 rounded-lg mb-6">
-        <p className="text-base">{t('referral.description')}</p>
+      <div className="bg-gray-800 p-4 rounded-lg mb-6">
+        <p className="text-base text-gray-300">{t('referral.description')}</p>
       </div>
       
       {/* Реферальная ссылка */}
       <div className="mb-4">
         <h3 className="text-lg font-medium mb-2">{t('referral.yourCode')}</h3>
         <div className="flex items-center space-x-2 mb-2">
-          <div className="bg-slate-100 p-2 rounded font-mono text-center flex-1">
+          <div className="bg-gray-800 p-2 rounded font-mono text-center flex-1 text-gray-300">
             {referralInfo.referralCode}
           </div>
         </div>
@@ -167,9 +167,9 @@ export function ReferralTab({ userId, locale }: ReferralTabProps) {
           <Input 
             value={referralInfo.referralLink} 
             readOnly 
-            className="flex-1 font-mono text-sm"
+            className="flex-1 font-mono text-sm bg-gray-800 border-gray-700 text-gray-300"
           />
-          <Button onClick={copyToClipboard} className="shrink-0">
+          <Button onClick={copyToClipboard} className="shrink-0 bg-primary hover:bg-primary/90">
             {copied ? (
               <Check className="h-4 w-4 mr-2" />
             ) : (
@@ -182,16 +182,16 @@ export function ReferralTab({ userId, locale }: ReferralTabProps) {
       
       {/* Статистика */}
       <div className="grid grid-cols-2 gap-4 text-center">
-        <div className="p-4 bg-slate-50 rounded-lg">
+        <div className="p-4 bg-gray-800 rounded-lg">
           <Users className="h-8 w-8 text-primary mx-auto mb-2" />
           <p className="text-2xl font-bold">{referralInfo.totalReferrals}</p>
-          <p className="text-sm text-muted-foreground">{t('referral.stats.invited')}</p>
+          <p className="text-sm text-gray-400">{t('referral.stats.invited')}</p>
         </div>
         
-        <div className="p-4 bg-slate-50 rounded-lg">
+        <div className="p-4 bg-gray-800 rounded-lg">
           <User className="h-8 w-8 text-primary mx-auto mb-2" />
           <p className="text-2xl font-bold">{referralInfo.activeReferrals}</p>
-          <p className="text-sm text-muted-foreground">{t('referral.stats.active')}</p>
+          <p className="text-sm text-gray-400">{t('referral.stats.active')}</p>
         </div>
       </div>
     </div>
