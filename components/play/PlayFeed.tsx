@@ -340,7 +340,7 @@ const PlayFeed = ({ userId }: PlayFeedProps) => {
       </div>
       
       {/* Навигационные кнопки */}
-      <div className="absolute bottom-8 left-0 right-0 flex justify-center space-x-16 py-4 z-20">
+      <div className="absolute left-0 right-0 top-1/2 transform -translate-y-1/2 flex justify-between px-6 z-20">
         <button
           onClick={handlePrev}
           disabled={currentEventIndex === 0}
