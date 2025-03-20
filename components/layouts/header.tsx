@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useTranslation, locales } from "@/lib/i18n-config";
-import { Home, Trophy, Calendar, LogOut, ChevronDown, Menu, Globe, Coins } from "lucide-react";
+import { Home, Trophy, Calendar, LogOut, ChevronDown, Menu, Globe, Coins, Play } from "lucide-react";
 import { useAuth } from "@/lib/context/auth-context";
 import { useState, useEffect } from "react";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
@@ -37,6 +37,11 @@ export function Header({ locale }: { locale: string }) {
       name: t("nav.events"),
       url: `/${locale}/events`,
       icon: Calendar,
+    },
+    {
+      name: t("nav.play"),
+      url: `/${locale}/play`,
+      icon: Play,
     },
     {
       name: t("nav.leaderboard"),

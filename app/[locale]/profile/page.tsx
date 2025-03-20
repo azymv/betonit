@@ -236,7 +236,7 @@ export default function DashboardPage() {
           <CardHeader className="pb-2">
             <CardTitle className="text-lg flex items-center">
               <Trophy className="h-5 w-5 mr-2 text-yellow-400" />
-              {t("leaderboard.title") || "Ranking"}
+              {t("profile.rating") || "Rating"}
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
@@ -248,7 +248,7 @@ export default function DashboardPage() {
             <p className="text-gray-400 text-sm mt-2">
               {userRank ? 
                 `${t("leaderboard.yourPosition") || "Your position"}: ${userRank.rank} ${t("leaderboard.outOf", { total: "1000+" }) || "out of 1000+"}` :
-                t("profile.not_ranked") || "Not ranked yet"
+                t("profile.not_ranked") || "You don't have a rating yet"
               }
             </p>
           </CardContent>

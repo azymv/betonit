@@ -108,9 +108,11 @@ export interface Database {
           description: string
           short_description: string
           image_url: string | null
+          media_url: string | null
           category: string
           start_time: string
           end_time: string
+          bet_closing_date: string | null
           status: "upcoming" | "active" | "resolved" | "cancelled"
           result: boolean | null
           created_at: string
@@ -122,9 +124,11 @@ export interface Database {
           description: string
           short_description: string
           image_url?: string | null
+          media_url?: string | null
           category: string
           start_time: string
           end_time: string
+          bet_closing_date?: string | null
           status?: "upcoming" | "active" | "resolved" | "cancelled"
           result?: boolean | null
           created_at?: string
@@ -136,9 +140,11 @@ export interface Database {
           description?: string
           short_description?: string
           image_url?: string | null
+          media_url?: string | null
           category?: string
           start_time?: string
           end_time?: string
+          bet_closing_date?: string | null
           status?: "upcoming" | "active" | "resolved" | "cancelled"
           result?: boolean | null
           created_at?: string

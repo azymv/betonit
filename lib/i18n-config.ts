@@ -8,6 +8,7 @@ export function getTranslation(locale: string, key: string, params?: Record<stri
     en: {
       'nav.home': 'Home',
       'nav.events': 'Events',
+      'nav.play': 'Play',
       'nav.profile': 'Profile',
       'nav.leaderboard': 'Leaderboard',
       'nav.signin': 'Sign In',
@@ -26,6 +27,10 @@ export function getTranslation(locale: string, key: string, params?: Record<stri
       'auth.signin.submit': 'Sign In',
       'auth.signin.noAccount': 'Don\'t have an account?',
       'auth.signin.signup': 'Sign Up',
+      
+      // Auth required
+      'auth.required': 'Authentication Required',
+      'auth.requiredMessage': 'You need to sign in to access this feature',
       
       // Auth sign up
       'auth.signup.title': 'Create Account',
@@ -125,6 +130,8 @@ export function getTranslation(locale: string, key: string, params?: Record<stri
       'events.betSuccess': 'Bet Placed Successfully',
       'events.betPlacedSuccess': 'Your bet has been successfully placed!',
       'events.backToEvent': 'Back to Event',
+      'events.noMoreEvents': 'No more events',
+      'events.betPredict': 'Your prediction',
     
       // Common
       'common.loading': 'Loading...',
@@ -175,6 +182,8 @@ export function getTranslation(locale: string, key: string, params?: Record<stri
       'profile.bets.lost': 'Lost',
       'profile.bets.waiting': 'Pending Resolution',
       'profile.bets.active': 'Active',
+      'profile.rating': 'Rating',
+      'profile.not_ranked': 'You don\'t have a rating yet',
       'profile.stats.title': 'Betting Statistics',
 'profile.stats.total': 'Total Bets',
 'profile.stats.won': 'Won',
@@ -264,6 +273,7 @@ export function getTranslation(locale: string, key: string, params?: Record<stri
     ru: {
       'nav.home': 'Главная',
       'nav.events': 'События',
+      'nav.play': 'Играть',
       'nav.profile': 'Профиль',
       'nav.leaderboard': 'Рейтинг',
       'nav.signin': 'Войти',
@@ -282,6 +292,10 @@ export function getTranslation(locale: string, key: string, params?: Record<stri
       'auth.signin.submit': 'Войти',
       'auth.signin.noAccount': 'Еще нет аккаунта?',
       'auth.signin.signup': 'Зарегистрироваться',
+      
+      // Auth required
+      'auth.required': 'Требуется авторизация',
+      'auth.requiredMessage': 'Вам необходимо войти в систему для доступа к этой функции',
       
       // Auth sign up
       'auth.signup.title': 'Создание аккаунта',
@@ -331,7 +345,6 @@ export function getTranslation(locale: string, key: string, params?: Record<stri
       'home.step3_description': 'Если твой прогноз верен, ты получишь выигрыш автоматически после исхода события',
       
       // Events
-      // Events
       'events.allEvents': 'Все события',
       'events.categories.politics': 'Политика',
       'events.categories.cryptocurrency': 'Криптовалюта',
@@ -346,7 +359,7 @@ export function getTranslation(locale: string, key: string, params?: Record<stri
       'events.status.resolved': 'Завершенные',
       'events.status.cancelled': 'Отмененные',
       'events.status.label': 'Статус',
-      'events.ends': 'Завершается',
+      'events.ends': 'Заканчивается',
       'events.yesPercent': 'Да',
       'events.viewDetails': 'Подробнее',
       'events.searchPlaceholder': 'Поиск событий...',
@@ -360,29 +373,31 @@ export function getTranslation(locale: string, key: string, params?: Record<stri
       'events.sortNewest': 'Сначала новые',
       'events.sortOldest': 'Сначала старые',
       'events.noEventsFound': 'События не найдены',
-      'events.tryDifferentFilters': 'Попробуйте изменить фильтры',
+      'events.tryDifferentFilters': 'Попробуйте позже',
       'events.imageComingSoon': 'Изображение скоро появится',
       'events.categoriesFilter': 'Категории',
-      'events.details': 'Детали события',
+      'events.details': 'Подробности события',
       'events.startDate': 'Дата начала',
       'events.endDate': 'Дата окончания',
       'events.totalBets': 'Всего ставок',
       'events.placeBet': 'Сделать ставку',
-      'events.alreadyBet': 'Вы уже сделали ставку',
+      'events.alreadyBet': 'Вы уже сделали ставку на это событие',
       'events.yourBet': 'Ваша ставка',
       'events.amount': 'Сумма',
       'events.odds': 'Коэффициент',
       'events.minBet': 'Минимальная ставка',
       'events.maxBet': 'Максимальная ставка',
-      'events.yourPrediction': 'Ваш прогноз',
+      'events.yourPrediction': 'Ваш выбор',
       'events.currentBalance': 'Текущий баланс',
       'events.betAmount': 'Сумма ставки',
       'events.potentialWinnings': 'Потенциальный выигрыш',
-      'events.placeBetButton': 'Разместить ставку',
-      'events.betSuccess': 'Ставка успешно размещена',
-      'events.betPlacedSuccess': 'Ваша ставка была успешно размещена!',
+      'events.placeBetButton': 'Сделать ставку',
+      'events.betSuccess': 'Ставка размещена успешно',
+      'events.betPlacedSuccess': 'Ваша ставка успешно размещена!',
       'events.backToEvent': 'Вернуться к событию',
-      
+      'events.noMoreEvents': 'Больше нет событий',
+      'events.betPredict': 'Ваш выбор',
+    
       // Common
       'common.loading': 'Загрузка...',
       'common.search': 'Поиск',
@@ -432,6 +447,8 @@ export function getTranslation(locale: string, key: string, params?: Record<stri
       'profile.bets.lost': 'Проиграно',
       'profile.bets.waiting': 'Ожидается решение',
       'profile.bets.active': 'Активно',
+      'profile.rating': 'Рейтинг',
+      'profile.not_ranked': 'У вас пока нет рейтинга',
       'profile.stats.title': 'Статистика ставок',
 'profile.stats.total': 'Всего ставок',
 'profile.stats.won': 'Выиграно',

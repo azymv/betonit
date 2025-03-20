@@ -44,17 +44,17 @@ export function Footer({ locale }: { locale: string }) {
             <ul className="space-y-2">
               <li>
                 <Link href={`/${locale}/profile`} className="text-sm hover:underline">
-                  {t('nav.profile')}
+                  {t('profile.dashboard')}
                 </Link>
               </li>
               <li>
-                <Link href={`/${locale}/profile/bets`} className="text-sm hover:underline">
-                  {t('footer.myBets')}
+                <Link href={`/${locale}/profile/social`} className="text-sm hover:underline">
+                  {t('profile.social')}
                 </Link>
               </li>
               <li>
-                <Link href={`/${locale}/profile/balance`} className="text-sm hover:underline">
-                  {t('footer.balance')}
+                <Link href={`/${locale}/profile/settings`} className="text-sm hover:underline">
+                  {t('profile.settings')}
                 </Link>
               </li>
             </ul>
