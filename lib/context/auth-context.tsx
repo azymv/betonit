@@ -116,6 +116,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Определяем локаль для редиректа
       const locale = userData?.language || 'en';
       
+      // Строим URL для перенаправления после подтверждения email
+      const redirectParams = new URLSearchParams();
+      redirectParams.append('next', `/${locale}/profile`);
+      const redirectUrl = `${siteUrl}/auth/callback${redirectParams.toString() ? '?' + redirectParams.toString() : ''}`;
+      
       // Если указан реферальный код, получаем ID реферера
       let referrerId = null;
       
@@ -146,7 +151,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email,
         password,
         options: {
-          emailRedirectTo: `${siteUrl}/auth/callback?next=/${locale}/profile`,
+          emailRedirectTo: redirectUrl,
           data: {
             username: userData?.username,
             full_name: userData?.full_name,
@@ -188,21 +193,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithX = async (redirectTo?: string) => {
     try {
-      // Базовый URL для редиректа после подтверждения
+      // Базовый URL для редиректа после аутентификации
       const siteUrl = typeof window !== 'undefined' 
         ? window.location.origin 
         : process.env.NEXT_PUBLIC_SITE_URL || 'https://betonit-sepia.vercel.app';
       
-      // Определяем URL для редиректа
-      // Используем параметр next вместо redirect_to для соответствия документации
-      const redirectURL = redirectTo 
-        ? `${siteUrl}/auth/callback?next=${encodeURIComponent(redirectTo)}` 
-        : `${siteUrl}/auth/callback`;
+      // Строим URL для перенаправления после аутентификации
+      // Supabase требует полный URL для redirectTo
+      const redirectParams = new URLSearchParams();
+      
+      if (redirectTo) {
+        redirectParams.append('next', encodeURIComponent(redirectTo));
+      }
       
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'twitter', // Supabase все еще использует 'twitter' в качестве провайдера
         options: {
-          redirectTo: redirectURL,
+          redirectTo: `${siteUrl}/auth/callback${redirectParams.toString() ? '?' + redirectParams.toString() : ''}`,
+          // Supabase автоматически добавляет свой колбэк URL (/auth/v1/callback)
         },
       });
       
