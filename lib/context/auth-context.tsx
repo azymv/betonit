@@ -117,9 +117,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const locale = userData?.language || 'en';
       
       // Строим URL для перенаправления после подтверждения email
-      const redirectParams = new URLSearchParams();
-      redirectParams.append('next', `/${locale}/profile`);
-      const redirectUrl = `${siteUrl}/auth/callback${redirectParams.toString() ? '?' + redirectParams.toString() : ''}`;
+      // Важно: предотвращаем двойное кодирование путем использования строки напрямую
+      const callbackUrl = `${siteUrl}/auth/callback?next=/${locale}/profile`;
+      console.log('Email signup redirect URL:', callbackUrl);
       
       // Если указан реферальный код, получаем ID реферера
       let referrerId = null;
@@ -151,7 +151,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email,
         password,
         options: {
-          emailRedirectTo: redirectUrl,
+          emailRedirectTo: callbackUrl,
           data: {
             username: userData?.username,
             full_name: userData?.full_name,
@@ -203,14 +203,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const redirectParams = new URLSearchParams();
       
       if (redirectTo) {
-        redirectParams.append('next', encodeURIComponent(redirectTo));
+        // Используем redirectTo напрямую без дополнительного encodeURIComponent
+        redirectParams.append('next', redirectTo);
       }
+      
+      console.log('X auth redirect URL:', `${siteUrl}/auth/callback${redirectParams.toString() ? '?' + redirectParams.toString() : ''}`);
       
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'twitter', // Supabase все еще использует 'twitter' в качестве провайдера
         options: {
           redirectTo: `${siteUrl}/auth/callback${redirectParams.toString() ? '?' + redirectParams.toString() : ''}`,
-          // Supabase автоматически добавляет свой колбэк URL (/auth/v1/callback)
         },
       });
       

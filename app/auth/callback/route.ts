@@ -21,17 +21,36 @@ export async function GET(request: NextRequest) {
   
   if (next) {
     try {
+      console.log("Original next param value:", next);
+      
+      // Декодируем URL, если он закодирован
+      let decodedNext = next;
+      try {
+        if (next.includes('%')) {
+          decodedNext = decodeURIComponent(next);
+          console.log("Decoded next param:", decodedNext);
+        }
+      } catch (decodeError) {
+        console.error("Error decoding next param:", decodeError);
+      }
+      
       // Make sure the redirectTo path starts with a slash
-      const normalizedPath = next.startsWith('/') ? next : `/${next}`;
+      const normalizedPath = decodedNext.startsWith('/') ? decodedNext : `/${decodedNext}`;
+      console.log("Normalized path:", normalizedPath);
       
       // Simple validation to prevent open redirect vulnerabilities
       // Only accept relative paths within our app
       if (normalizedPath.startsWith('/') && !normalizedPath.includes('://')) {
         validRedirectPath = normalizedPath;
+        console.log("Setting valid redirect path to:", validRedirectPath);
+      } else {
+        console.warn("Rejected invalid redirect path:", normalizedPath);
       }
     } catch (e) {
       console.error("Invalid redirect path:", e);
     }
+  } else {
+    console.log("No 'next' parameter found in URL, using default path");
   }
   
   // Get referral ID from URL if present
