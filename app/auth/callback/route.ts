@@ -15,6 +15,25 @@ export async function GET(request: NextRequest) {
   const errorCode = requestUrl.searchParams.get('error_code');
   const errorDesc = requestUrl.searchParams.get('error_description');
   
+  // Get redirect path and validate it using 'next' parameter (по документации)
+  const next = requestUrl.searchParams.get('next');
+  let validRedirectPath = `/${defaultLocale}/profile`;
+  
+  if (next) {
+    try {
+      // Make sure the redirectTo path starts with a slash
+      const normalizedPath = next.startsWith('/') ? next : `/${next}`;
+      
+      // Simple validation to prevent open redirect vulnerabilities
+      // Only accept relative paths within our app
+      if (normalizedPath.startsWith('/') && !normalizedPath.includes('://')) {
+        validRedirectPath = normalizedPath;
+      }
+    } catch (e) {
+      console.error("Invalid redirect path:", e);
+    }
+  }
+  
   // Get referral ID from URL if present
   const refId = requestUrl.searchParams.get('ref_id');
   if (refId) {
@@ -26,6 +45,7 @@ export async function GET(request: NextRequest) {
   // Log the full URL and all search params for debugging
   console.log("Full callback URL:", requestUrl.toString());
   console.log("All URL search params:", Object.fromEntries(requestUrl.searchParams.entries()));
+  console.log("Final redirect path:", validRedirectPath);
   
   // Log any errors from Supabase
   if (error || errorCode || errorDesc) {
@@ -107,7 +127,18 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL(`/${defaultLocale}/auth/error`, requestUrl.origin));
   }
 
-  // Redirect to success page after verification
-  console.log("Auth callback completed, redirecting to success page");
-  return NextResponse.redirect(new URL(`/${defaultLocale}/auth/success`, requestUrl.origin));
+  // Handle X-Forwarded-Host для работы с нагрузочными балансировщиками
+  const forwardedHost = request.headers.get('x-forwarded-host');
+  const isLocalEnv = process.env.NODE_ENV === 'development';
+  
+  if (isLocalEnv) {
+    console.log("Local environment detected, redirecting to:", validRedirectPath);
+    return NextResponse.redirect(new URL(validRedirectPath, requestUrl.origin));
+  } else if (forwardedHost) {
+    console.log("Forwarded host detected:", forwardedHost, "redirecting to:", validRedirectPath);
+    return NextResponse.redirect(new URL(validRedirectPath, `https://${forwardedHost}`));
+  } else {
+    console.log("Standard redirect to:", validRedirectPath);
+    return NextResponse.redirect(new URL(validRedirectPath, requestUrl.origin));
+  }
 }

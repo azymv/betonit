@@ -14,10 +14,10 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertCircle, X } from 'lucide-react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Database } from '@/lib/types/supabase';
-import { AlertCircle } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
 import { ReferralBadge } from '@/components/referral/ReferralBadge';
 
 interface AuthFormProps {
@@ -42,6 +42,7 @@ export function AuthForm({ type, redirectPath = '/' }: AuthFormProps) {
   const [referrerUsername, setReferrerUsername] = useState<string | undefined>(undefined);
   const [showResendButton, setShowResendButton] = useState(false);
   const [resendingEmail, setResendingEmail] = useState(false);
+  const [twitterLoading, setTwitterLoading] = useState(false);
   const supabase = createClientComponentClient<Database>({
     options: {
       global: {
@@ -53,7 +54,7 @@ export function AuthForm({ type, redirectPath = '/' }: AuthFormProps) {
     }
   });
   
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, signInWithX } = useAuth();
   const router = useRouter();
   const params = useParams();
   const searchParams = useSearchParams();
@@ -220,7 +221,21 @@ export function AuthForm({ type, redirectPath = '/' }: AuthFormProps) {
     }
   };
   
-  // Остальной код компонента без изменений
+  const handleXSignIn = async () => {
+    setTwitterLoading(true);
+    setError(null);
+    try {
+      const { error } = await signInWithX(redirectPath);
+      if (error) {
+        setError(error.message);
+      }
+    } catch (err) {
+      console.error('X authentication error:', err);
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
+    } finally {
+      setTwitterLoading(false);
+    }
+  };
   
   return (
     <Card className="w-full max-w-md mx-auto">
@@ -281,143 +296,172 @@ export function AuthForm({ type, redirectPath = '/' }: AuthFormProps) {
             </AlertDescription>
           </Alert>
         ) : (
-          <form onSubmit={handleSubmit}>
-            <div className="space-y-4">
-              {type === 'signup' && (
+          <>
+            {/* X (formerly Twitter) Sign In Button */}
+            <Button 
+              type="button"
+              className="w-full mb-4 bg-black text-white hover:bg-gray-800" 
+              onClick={handleXSignIn}
+              disabled={twitterLoading || isLoading}
+            >
+              {twitterLoading ? (
                 <>
-                  <div className="space-y-2">
-                    <Label htmlFor="username">{t('auth.signup.username')}</Label>
-                    <Input
-                      id="username"
-                      name="username"
-                      type="text"
-                      placeholder={t('auth.signup.usernamePlaceholder')}
-                      required
-                      value={formData.username}
-                      onChange={handleChange}
-                      disabled={isLoading}
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="full_name">{t('auth.signup.fullName')}</Label>
-                    <Input
-                      id="full_name"
-                      name="full_name"
-                      type="text"
-                      placeholder={t('auth.signup.fullNamePlaceholder')}
-                      value={formData.full_name}
-                      onChange={handleChange}
-                      disabled={isLoading}
-                    />
-                  </div>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {t('auth.social.loading')}
+                </>
+              ) : (
+                <>
+                  <X className="mr-2 h-4 w-4" />
+                  {t('auth.social.continueWithX')}
                 </>
               )}
-              
-              <div className="space-y-2">
-                <Label htmlFor="email">{t('auth.signin.email')}</Label>
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  placeholder={t('auth.signin.email')}
-                  required
-                  value={formData.email}
-                  onChange={handleChange}
-                  disabled={isLoading}
-                />
+            </Button>
+            
+            <div className="relative mb-4">
+              <Separator className="my-4" />
+              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-2 text-xs text-muted-foreground">
+                {t('auth.social.or')}
               </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="password">{t('auth.signin.password')}</Label>
-                <Input
-                  id="password"
-                  name="password"
-                  type="password"
-                  placeholder={type === 'signin' ? t('auth.signin.password') : t('auth.signup.passwordInfo')}
-                  required
-                  value={formData.password}
-                  onChange={handleChange}
-                  disabled={isLoading}
-                />
-              </div>
-
-              {type === 'signup' && (
-                <>
-                  <div className="space-y-2">
-                    <Label htmlFor="language">{t('auth.signup.language')}</Label>
-                    <Select 
-                      value={formData.language} 
-                      onValueChange={handleLanguageChange}
-                      disabled={isLoading}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder={t('auth.signup.selectLanguage')} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="en">{t('language.english')}</SelectItem>
-                        <SelectItem value="ru">{t('language.russian')}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <Checkbox 
-                      id="terms" 
-                      checked={formData.termsAccepted}
-                      onCheckedChange={handleTermsChange}
-                      disabled={isLoading}
-                    />
-                    <label
-                      htmlFor="terms"
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                    >
-                      {t('auth.signup.agreeToTerms')}{' '}
-                      <Link href={`/${locale}/terms`} className="text-primary hover:underline">
-                        {t('auth.signup.terms')}
-                      </Link>
-                    </label>
-                  </div>
-                </>
-              )}
-              
-              {type === 'signup' && (
+            </div>
+          
+            <form onSubmit={handleSubmit}>
+              <div className="space-y-4">
+                {type === 'signup' && (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="username">{t('auth.signup.username')}</Label>
+                      <Input
+                        id="username"
+                        name="username"
+                        type="text"
+                        placeholder={t('auth.signup.usernamePlaceholder')}
+                        required
+                        value={formData.username}
+                        onChange={handleChange}
+                        disabled={isLoading}
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="full_name">{t('auth.signup.fullName')}</Label>
+                      <Input
+                        id="full_name"
+                        name="full_name"
+                        type="text"
+                        placeholder={t('auth.signup.fullNamePlaceholder')}
+                        value={formData.full_name}
+                        onChange={handleChange}
+                        disabled={isLoading}
+                      />
+                    </div>
+                  </>
+                )}
+                
                 <div className="space-y-2">
-                  <Label htmlFor="referralCode">{t('referral.enterCode')}</Label>
+                  <Label htmlFor="email">{t('auth.signin.email')}</Label>
                   <Input
-                    id="referralCode"
-                    name="referralCode"
-                    type="text"
-                    placeholder={t('referral.enterCodePlaceholder')}
-                    value={formData.referralCode}
-                    onChange={(e) => {
-                      const newValue = e.target.value;
-                      console.log('Referral code input changed:', newValue);
-                      setFormData(prev => ({
-                        ...prev,
-                        referralCode: newValue
-                      }));
-                    }}
+                    id="email"
+                    name="email"
+                    type="email"
+                    placeholder={t('auth.signin.email')}
+                    required
+                    value={formData.email}
+                    onChange={handleChange}
                     disabled={isLoading}
                   />
-                  <p className="text-xs text-muted-foreground">
-                    {t('referral.codeOptional')}
-                  </p>
                 </div>
-              )}
-              
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? (
+                
+                <div className="space-y-2">
+                  <Label htmlFor="password">{t('auth.signin.password')}</Label>
+                  <Input
+                    id="password"
+                    name="password"
+                    type="password"
+                    placeholder={type === 'signin' ? t('auth.signin.password') : t('auth.signup.passwordInfo')}
+                    required
+                    value={formData.password}
+                    onChange={handleChange}
+                    disabled={isLoading}
+                  />
+                </div>
+
+                {type === 'signup' && (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {type === 'signin' ? t('auth.signin.loading') : t('auth.signup.loading')}
+                    <div className="space-y-2">
+                      <Label htmlFor="language">{t('auth.signup.language')}</Label>
+                      <Select 
+                        value={formData.language} 
+                        onValueChange={handleLanguageChange}
+                        disabled={isLoading}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder={t('auth.signup.selectLanguage')} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="en">{t('language.english')}</SelectItem>
+                          <SelectItem value="ru">{t('language.russian')}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <Checkbox 
+                        id="terms" 
+                        checked={formData.termsAccepted}
+                        onCheckedChange={handleTermsChange}
+                        disabled={isLoading}
+                      />
+                      <label
+                        htmlFor="terms"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        {t('auth.signup.agreeToTerms')}{' '}
+                        <Link href={`/${locale}/terms`} className="text-primary hover:underline">
+                          {t('auth.signup.terms')}
+                        </Link>
+                      </label>
+                    </div>
                   </>
-                ) : (
-                  type === 'signin' ? t('auth.signin.submit') : t('auth.signup.submit')
                 )}
-              </Button>
-            </div>
-          </form>
+                
+                {type === 'signup' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="referralCode">{t('referral.enterCode')}</Label>
+                    <Input
+                      id="referralCode"
+                      name="referralCode"
+                      type="text"
+                      placeholder={t('referral.enterCodePlaceholder')}
+                      value={formData.referralCode}
+                      onChange={(e) => {
+                        const newValue = e.target.value;
+                        console.log('Referral code input changed:', newValue);
+                        setFormData(prev => ({
+                          ...prev,
+                          referralCode: newValue
+                        }));
+                      }}
+                      disabled={isLoading}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      {t('referral.codeOptional')}
+                    </p>
+                  </div>
+                )}
+                
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      {type === 'signin' ? t('auth.signin.loading') : t('auth.signup.loading')}
+                    </>
+                  ) : (
+                    type === 'signin' ? t('auth.signin.submit') : t('auth.signup.submit')
+                  )}
+                </Button>
+              </div>
+            </form>
+          </>
         )}
       </CardContent>
       <CardFooter className="flex justify-center">

@@ -269,6 +269,11 @@ export function getTranslation(locale: string, key: string, params?: Record<stri
       'leaderboard.rankLabels.top25percent': 'Top 25%',
       'leaderboard.rankLabels.top50percent': 'Top 50%',
       'leaderboard.rankLabels.other': 'Challenger',
+      
+      // Auth social media
+      'auth.social.continueWithX': 'Continue with X',
+      'auth.social.loading': 'Loading...',
+      'auth.social.or': 'or',
     },
     ru: {
       'nav.home': 'Главная',
@@ -534,6 +539,11 @@ export function getTranslation(locale: string, key: string, params?: Record<stri
       'leaderboard.rankLabels.top25percent': 'Лучшие 25%',
       'leaderboard.rankLabels.top50percent': 'Лучшие 50%',
       'leaderboard.rankLabels.other': 'Претендент',
+      
+      // Auth social media
+      'auth.social.continueWithX': 'Войти через X',
+      'auth.social.loading': 'Загрузка...',
+      'auth.social.or': 'или',
     }
   };
   

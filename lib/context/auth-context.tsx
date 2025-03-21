@@ -17,6 +17,7 @@ interface AuthContextType {
     referralCode?: string;
   }) => Promise<{ error: Error | null }>;
   signOut: () => Promise<{ error: Error | null }>;
+  signInWithX: (redirectTo?: string) => Promise<{ error: Error | null }>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -26,6 +27,7 @@ const AuthContext = createContext<AuthContextType>({
   signIn: async () => ({ error: null }),
   signUp: async () => ({ error: null }),
   signOut: async () => ({ error: null }),
+  signInWithX: async () => ({ error: null }),
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -144,7 +146,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email,
         password,
         options: {
-          emailRedirectTo: `${siteUrl}/auth/callback?redirect_to=/${locale}/profile`,
+          emailRedirectTo: `${siteUrl}/auth/callback?next=/${locale}/profile`,
           data: {
             username: userData?.username,
             full_name: userData?.full_name,
@@ -184,6 +186,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const signInWithX = async (redirectTo?: string) => {
+    try {
+      // Базовый URL для редиректа после подтверждения
+      const siteUrl = typeof window !== 'undefined' 
+        ? window.location.origin 
+        : process.env.NEXT_PUBLIC_SITE_URL || 'https://betonit-sepia.vercel.app';
+      
+      // Определяем URL для редиректа
+      // Используем параметр next вместо redirect_to для соответствия документации
+      const redirectURL = redirectTo 
+        ? `${siteUrl}/auth/callback?next=${encodeURIComponent(redirectTo)}` 
+        : `${siteUrl}/auth/callback`;
+      
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'twitter', // Supabase все еще использует 'twitter' в качестве провайдера
+        options: {
+          redirectTo: redirectURL,
+        },
+      });
+      
+      if (error) {
+        console.error('Error signing in with X:', error);
+        return { error };
+      }
+      
+      return { error: null };
+    } catch (error) {
+      console.error('Exception during X sign in:', error);
+      return { error: error as Error };
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -193,6 +227,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signIn,
         signUp,
         signOut,
+        signInWithX,
       }}
     >
       {children}
