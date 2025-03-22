@@ -14,7 +14,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2, AlertCircle, X } from 'lucide-react';
+import { Loader2, AlertCircle } from 'lucide-react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Database } from '@/lib/types/supabase';
 import { Separator } from '@/components/ui/separator';
@@ -311,7 +311,6 @@ export function AuthForm({ type, redirectPath = '/' }: AuthFormProps) {
                 </>
               ) : (
                 <>
-                  <X className="mr-2 h-4 w-4" />
                   {t('auth.social.continueWithX')}
                 </>
               )}
