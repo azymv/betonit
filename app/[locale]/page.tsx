@@ -219,68 +219,77 @@ export default function HomePage() {
         <div className="py-0">
           <div className="mx-auto">
             <div className="grid grid-cols-1 md:grid-cols-2 max-w-[1600px] mx-auto border-2 border-[#be8eff] overflow-hidden">
-              {/* Transfer Card */}
+              {/* Card 1 */}
               <div className="bg-[#291468] text-white p-12 relative min-h-[600px] flex flex-col border-r-2 border-b-2 border-[#be8eff]">
                 <div>
-                  <h2 className="text-[#a887fa] text-3xl mb-4">Transfer</h2>
-                  <h3 className="text-4xl font-bold mb-6">Send and receive crypto</h3>
-                  <p className="mb-12 text-lg">Send and receive crypto to and from other wallets safely and securely.</p>
+                  <h2 className="text-[#a887fa] text-3xl mb-4">Earn Through Predictions</h2>
+                  <h3 className="text-4xl font-bold mb-6">Turn Insights into Earnings</h3>
+                  <p className="mb-12 text-lg">With BetOnIt, your predictions become a smart investment. Earn coins for accurate forecasts and exchange them for our exclusive token. It&apos;s a concise, rewarding way to profit from your insights.</p>
                 </div>
                 <div className="mt-auto flex justify-center">
-                  <img 
-                    src="https://placehold.co/300x300/291468/be8eff?text=Transfer+Arrows" 
-                    alt="Transfer" 
-                    className="max-w-[300px] max-h-[300px]"
+                  <Image 
+                    src="/images/ui/feature-cards/arc.png" 
+                    alt="Earn Through Predictions" 
+                    width={250}
+                    height={250}
+                    className="w-auto h-auto"
+                    style={{ objectFit: 'contain' }}
+                    quality={100}
                   />
                 </div>
               </div>
 
-              {/* Stake Card */}
+              {/* Card 2 */}
               <div className="bg-black text-white p-12 relative min-h-[600px] flex flex-col border-b-2 border-[#be8eff]">
                 <div>
-                  <h2 className="text-[#be8eff] text-3xl mb-4">Stake</h2>
-                  <h3 className="text-4xl font-bold mb-6">Get more SOL & ETH with a 100% earnings match</h3>
-                  <p className="mb-4 text-lg">Earn a competitive rate when you stake SOL & ETH. Plus, we&apos;ll match your earnings for a limited time.</p>
-                  <p className="text-sm opacity-70 mb-8">APY is subject to change. <a href="#" className="underline">Other terms apply</a>.</p>
+                  <h2 className="text-[#be8eff] text-3xl mb-4">Predict with Ease</h2>
+                  <h3 className="text-4xl font-bold mb-6">BetOnIt Play—Your Gateway to Quick Wins</h3>
+                  <p className="mb-4 text-lg">BetOnIt Play makes predicting simple: swipe through events, choose &quot;Yes&quot; or &quot;No,&quot; and place your bet. No hassle, just you, your intuition, and a few seconds to decide. Dive in and start winning effortlessly.</p>
                 </div>
                 <div className="mt-auto flex justify-center">
-                  <img 
-                    src="https://placehold.co/300x300/000000/be8eff?text=Stake+Icon" 
-                    alt="Stake" 
+                  <Image 
+                    src="/images/ui/feature-cards/arrows.png" 
+                    alt="Predict with Ease" 
+                    width={300}
+                    height={300}
                     className="max-w-[300px] max-h-[300px]"
                   />
                 </div>
               </div>
 
-              {/* Earn Card */}
+              {/* Card 3 */}
               <div className="bg-black text-white p-12 relative min-h-[600px] flex flex-col border-r-2 border-[#be8eff]">
                 <div>
-                  <h2 className="text-[#be8eff] text-3xl mb-4">Earn</h2>
-                  <h3 className="text-4xl font-bold mb-6">Get 10% rewards on your AVAX holdings</h3>
-                  <p className="mb-4 text-lg">Earn AVAX rewards just for holding AVAX.</p>
-                  <p className="text-sm opacity-70 mb-8">Rewards accrue daily based on your end of day AVAX balance. Offer details subject to change at any time. <a href="#" className="underline">Other terms apply</a></p>
+                  <h2 className="text-[#be8eff] text-3xl mb-4">Built on Trust</h2>
+                  <h3 className="text-4xl font-bold mb-6">Reliable Outcomes, Assured by Oracle Technology</h3>
+                  <p className="mb-4 text-lg">Our Oracle technology ensures fairness and precision by sourcing data from verified providers. This guarantees transparent, trustworthy results you can rely on. Predict with confidence—your trust is well-placed.</p>
                 </div>
                 <div className="mt-auto flex justify-center">
-                  <img 
-                    src="https://placehold.co/300x300/000000/be8eff?text=Earn+Icon" 
-                    alt="Earn" 
-                    className="max-w-[300px] max-h-[300px]"
+                  <Image 
+                    src="/images/ui/feature-cards/cells.png" 
+                    alt="Built on Trust" 
+                    width={250}
+                    height={250}
+                    className="w-auto h-auto"
+                    style={{ objectFit: 'contain' }}
+                    quality={100}
                   />
                 </div>
               </div>
 
-              {/* Learn Card */}
+              {/* Card 4 */}
               <div className="bg-[#291468] text-white p-12 relative min-h-[600px] flex flex-col">
                 <div>
-                  <h2 className="text-[#be8eff] text-3xl mb-4">Learn</h2>
-                  <h3 className="text-4xl font-bold mb-6">Earn rewards for learning</h3>
-                  <p className="mb-4 text-lg">Learn about coins like BTC, AVAX, and BONK, and get rewards of €1 - €2.</p>
-                  <p className="text-sm opacity-70 mb-8">Minimum deposit required. <a href="#" className="underline">View all terms</a></p>
+                  <h2 className="text-[#be8eff] text-3xl mb-4">Rise to the Challenge</h2>
+                  <h3 className="text-4xl font-bold mb-6">Excel in Leaderboards and Tournaments</h3>
+                  <p className="mb-4 text-lg">Prove your prediction skills on our leaderboard or compete in tournaments for exclusive rewards. BetOnIt offers you the chance to stand out and succeed—step up and claim your place among the best.</p>
                 </div>
                 <div className="mt-auto flex justify-center">
-                  <img 
-                    src="https://placehold.co/300x300/291468/be8eff?text=Learn+Icon" 
-                    alt="Learn" 
+                  <Image 
+                    src="/images/ui/feature-cards/figure.png" 
+                    alt="Rise to the Challenge" 
+                    width={300}
+                    height={300}
                     className="max-w-[300px] max-h-[300px]"
                   />
                 </div>
@@ -290,13 +299,13 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Security Section - для всех пользователей */}
+      {/* Security Section - только для неавторизованных пользователей */}
+      {!user && (
       <div className="py-20 bg-black text-white">
         <div className="container mx-auto px-4">
           <div className="max-w-[1200px] mx-auto text-center">
             <h2 className="text-5xl font-normal mb-16">
-              Protection for your coins.<br />
-              Peace of mind for you.
+              Predict with Ease. Earn crypto rewards.
             </h2>
             
             <div className="max-w-[800px] mx-auto">
@@ -308,7 +317,7 @@ export default function HomePage() {
                   </svg>
                 </div>
                 <div className="text-left">
-                  <p className="text-xl">We don&apos;t lend your crypto or leverage against it</p>
+                  <p className="text-xl">Explore events in sports, politics, crypto, and more.</p>
                 </div>
               </div>
 
@@ -320,7 +329,7 @@ export default function HomePage() {
                   </svg>
                 </div>
                 <div className="text-left">
-                  <p className="text-xl">Your account is backed by industry-leading security</p>
+                  <p className="text-xl">Earn crypto rewards from your accurate predictions.</p>
                 </div>
               </div>
 
@@ -332,7 +341,7 @@ export default function HomePage() {
                   </svg>
                 </div>
                 <div className="text-left">
-                  <p className="text-xl">The majority of crypto is stored in cold storage</p>
+                  <p className="text-xl">Trust results powered by blockchain oracle tech.</p>
                 </div>
               </div>
 
@@ -344,13 +353,14 @@ export default function HomePage() {
                   </svg>
                 </div>
                 <div className="text-left">
-                  <p className="text-xl">Crime insurance against theft and cybersecurity breaches</p>
+                  <p className="text-xl">Use a simple, secure platform designed for you.</p>
                 </div>
               </div>
             </div>
           </div>
         </div>
       </div>
+      )}
 
       {/* Популярные события - только для авторизованных пользователей */}
       {user && (
