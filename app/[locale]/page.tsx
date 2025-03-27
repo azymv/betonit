@@ -222,7 +222,7 @@ export default function HomePage() {
               {/* Card 1 */}
               <div className="bg-[#291468] text-white p-12 relative min-h-[600px] flex flex-col border-r-2 border-b-2 border-[#be8eff]">
                 <div>
-                  <h2 className="text-[#a887fa] text-3xl mb-4">Earn Through Predictions</h2>
+                  <h2 className="text-[#a887fa] text-3xl mb-4">Profit</h2>
                   <h3 className="text-4xl font-bold mb-6">Turn Insights into Earnings</h3>
                   <p className="mb-12 text-lg">With BetOnIt, your predictions become a smart investment. Earn coins for accurate forecasts and exchange them for our exclusive token. It&apos;s a concise, rewarding way to profit from your insights.</p>
                 </div>
@@ -242,7 +242,7 @@ export default function HomePage() {
               {/* Card 2 */}
               <div className="bg-black text-white p-12 relative min-h-[600px] flex flex-col border-b-2 border-[#be8eff]">
                 <div>
-                  <h2 className="text-[#be8eff] text-3xl mb-4">Predict with Ease</h2>
+                  <h2 className="text-[#be8eff] text-3xl mb-4">Ease</h2>
                   <h3 className="text-4xl font-bold mb-6">BetOnIt Play—Your Gateway to Quick Wins</h3>
                   <p className="mb-4 text-lg">BetOnIt Play makes predicting simple: swipe through events, choose &quot;Yes&quot; or &quot;No,&quot; and place your bet. No hassle, just you, your intuition, and a few seconds to decide. Dive in and start winning effortlessly.</p>
                 </div>
@@ -260,7 +260,7 @@ export default function HomePage() {
               {/* Card 3 */}
               <div className="bg-black text-white p-12 relative min-h-[600px] flex flex-col border-r-2 border-[#be8eff]">
                 <div>
-                  <h2 className="text-[#be8eff] text-3xl mb-4">Built on Trust</h2>
+                  <h2 className="text-[#be8eff] text-3xl mb-4">Trust</h2>
                   <h3 className="text-4xl font-bold mb-6">Reliable Outcomes, Assured by Oracle Technology</h3>
                   <p className="mb-4 text-lg">Our Oracle technology ensures fairness and precision by sourcing data from verified providers. This guarantees transparent, trustworthy results you can rely on. Predict with confidence—your trust is well-placed.</p>
                 </div>
@@ -280,7 +280,7 @@ export default function HomePage() {
               {/* Card 4 */}
               <div className="bg-[#291468] text-white p-12 relative min-h-[600px] flex flex-col">
                 <div>
-                  <h2 className="text-[#be8eff] text-3xl mb-4">Rise to the Challenge</h2>
+                  <h2 className="text-[#be8eff] text-3xl mb-4">Challenge</h2>
                   <h3 className="text-4xl font-bold mb-6">Excel in Leaderboards and Tournaments</h3>
                   <p className="mb-4 text-lg">Prove your prediction skills on our leaderboard or compete in tournaments for exclusive rewards. BetOnIt offers you the chance to stand out and succeed—step up and claim your place among the best.</p>
                 </div>

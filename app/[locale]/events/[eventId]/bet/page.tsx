@@ -20,6 +20,7 @@ import { placeBet } from '@/lib/actions/bet-actions';
 import { Event } from '@/lib/types/event';
 import { User } from '@supabase/supabase-js';
 import { RainbowButton } from "@/components/ui/rainbow-button";
+import { sanitizeFormData } from '@/lib/utils/sanitize';
 
 // Define a type for the debug information
 interface DebugInfo {
@@ -70,9 +71,8 @@ export default function PlaceBetPage() {
   const router = useRouter();
   const { user, isLoading: isAuthLoading } = useAuth();
 
-  // Добавляем состояние для отладочной информации
+  // State for debug information
   const [debugInfo, setDebugInfo] = useState<DebugInfo>({});
-
   const [event, setEvent] = useState<Event | null>(null);
   const [amount, setAmount] = useState<number>(10);
   const [balance, setBalance] = useState<number>(0);
@@ -81,14 +81,12 @@ export default function PlaceBetPage() {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Минимальная и максимальная ставка
+  // Constants
   const MIN_BET = 10;
   const MAX_BET = 1000;
-
-  // Коэффициент для MVP (фиксированный 2.0)
   const ODDS = 2.0;
 
-  // Ref для предотвращения многократного запуска fetchData
+  // Ref for preventing multiple fetch attempts
   const fetchAttempted = useRef(false);
 
   // ОТЛАДКА: Выводим текущее состояние аутентификации
@@ -356,79 +354,6 @@ export default function PlaceBetPage() {
   const formatNumber = (num: number) => {
     return num.toLocaleString(localeStr === 'en' ? 'en-US' : 'ru-RU');
   };
-
-  // ОТЛАДКА: Если возникает ошибка или загрузка слишком долгая, показываем отладочную панель
-  if ((isLoading && Object.keys(debugInfo).length > 0) || error) {
-    return (
-      <div className="container max-w-lg mx-auto px-4 py-8">
-        <Button variant="ghost" className="mb-4" onClick={() => router.back()}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          {t('common.back')}
-        </Button>
-        
-        <Card>
-          <CardHeader>
-            <CardTitle>Отладочная информация</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {error && (
-              <Alert variant="destructive" className="mb-4">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Ошибка</AlertTitle>
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-            
-            <div className="bg-slate-100 p-4 rounded mb-4 overflow-auto">
-              <pre className="text-xs">
-                {JSON.stringify(debugInfo, null, 2)}
-              </pre>
-            </div>
-            
-            <p className="text-sm text-gray-500 mb-2">Состояние:</p>
-            <ul className="text-sm space-y-1 mb-4">
-              <li>isLoading: {isLoading ? 'true' : 'false'}</li>
-              <li>isAuthLoading: {isAuthLoading ? 'true' : 'false'}</li>
-              <li>User: {user ? user.email : 'не авторизован'}</li>
-              <li>Event: {event ? 'загружено' : 'не загружено'}</li>
-              <li>Balance: {balance}</li>
-            </ul>
-          </CardContent>
-          <CardFooter>
-            <Button asChild className="w-full">
-              <Link href={`/${localeStr}/events/${eventIdStr}`}>
-                Вернуться к событию
-              </Link>
-            </Button>
-          </CardFooter>
-        </Card>
-      </div>
-    );
-  }
-
-  // Отображение загрузки
-  if (isLoading || isAuthLoading) {
-    return (
-      <div className="container max-w-lg mx-auto px-4 py-8">
-        <Skeleton className="h-10 w-20 mb-4" />
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-8 w-48 mb-2" />
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Skeleton className="h-6 w-full" />
-            <Skeleton className="h-6 w-3/4" />
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-6 w-full" />
-            <Skeleton className="h-12 w-full" />
-          </CardContent>
-          <CardFooter>
-            <Skeleton className="h-10 w-full" />
-          </CardFooter>
-        </Card>
-      </div>
-    );
-  }
 
   return (
     <div className="container max-w-lg mx-auto px-4 py-8">

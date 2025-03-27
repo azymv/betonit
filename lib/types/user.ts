@@ -34,9 +34,10 @@ export interface UserSettingsFormData {
 export interface AuthFormData {
   email: string;
   password: string;
-  username: string;
-  full_name: string;
-  language: string;
-  termsAccepted: boolean;
+  username?: string;
+  full_name?: string;
+  language?: string;
+  termsAccepted?: boolean;
   referralCode?: string;
+  confirmPassword?: string;
 }

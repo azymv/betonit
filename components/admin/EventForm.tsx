@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
+import { useTranslation } from '@/lib/i18n-config';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
@@ -28,6 +30,7 @@ import {
 import { Loader2 } from 'lucide-react';
 import { EventStatus } from '@/lib/types/event';
 import { createEvent } from '@/lib/actions/seed-events';
+import { sanitizeFormData } from '@/lib/utils/sanitize';
 
 // Схема для валидации формы
 const formSchema = z.object({
@@ -63,57 +66,60 @@ const statuses = [
   { value: 'cancelled', label: 'Отмененное' },
 ];
 
-export default function EventForm() {
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [result, setResult] = useState<{ success: boolean; message?: string; error?: string } | null>(null);
+export function EventForm() {
+  const params = useParams();
+  const locale = params.locale as string;
+  const { t } = useTranslation(locale);
   const router = useRouter();
-
-  // Инициализация формы с хуком useForm
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      title: '',
-      description: '',
-      short_description: '',
-      image_url: '/images/events/event_placeholder.png', // Значение по умолчанию
-      category: '',
-      start_time: new Date().toISOString().slice(0, 16), // Текущая дата в формате YYYY-MM-DDTHH:MM
-      end_time: new Date(new Date().setDate(new Date().getDate() + 30)).toISOString().slice(0, 16), // +30 дней
-      status: 'active' as EventStatus,
-    },
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    startDate: '',
+    endDate: '',
+    imageUrl: '',
+    maxParticipants: 0,
+    entryFee: 0
   });
 
-  // Обработчик отправки формы
-  async function onSubmit(values: z.infer<typeof formSchema>) {
-    setIsSubmitting(true);
-    setResult(null);
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
 
     try {
-      const response = await createEvent(values);
-      
-      if (response.success) {
-        setResult({ 
-          success: true, 
-          message: 'Событие успешно создано!' 
-        });
-        form.reset(); // Сбрасываем форму после успешного создания
-        router.refresh(); // Обновляем страницу для отображения нового события
-      } else {
-        setResult({ 
-          success: false, 
-          error: response.error || 'Не удалось создать событие' 
-        });
-      }
-    } catch (error) {
-      console.error('Error submitting form:', error);
-      setResult({ 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Неизвестная ошибка' 
+      // Sanitize form data before submission
+      const sanitizedData = sanitizeFormData(formData);
+
+      const response = await fetch('/api/admin/events', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(sanitizedData),
       });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || t('admin.eventCreationError'));
+      }
+
+      router.push('/admin/events');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('admin.eventCreationError'));
     } finally {
-      setIsSubmitting(false);
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
     <Card>
@@ -121,8 +127,8 @@ export default function EventForm() {
         <CardTitle>Создание нового события</CardTitle>
       </CardHeader>
       <CardContent>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <Form>
+          <form onSubmit={handleSubmit} className="space-y-6">
             <FormField
               control={form.control}
               name="title"
@@ -283,14 +289,14 @@ export default function EventForm() {
               />
             </div>
 
-            {result && (
-              <div className={`p-4 rounded-md ${result.success ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
-                {result.success ? result.message : result.error}
+            {error && (
+              <div className="p-4 rounded-md bg-red-50 text-red-800 border border-red-200">
+                {error}
               </div>
             )}
 
-            <Button type="submit" disabled={isSubmitting} className="w-full">
-              {isSubmitting ? (
+            <Button type="submit" disabled={isLoading} className="w-full">
+              {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Создание события...

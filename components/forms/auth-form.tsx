@@ -19,6 +19,7 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Database } from '@/lib/types/supabase';
 import { Separator } from '@/components/ui/separator';
 import { ReferralBadge } from '@/components/referral/ReferralBadge';
+import { sanitizeFormData } from '@/lib/utils/sanitize';
 
 interface AuthFormProps {
   type: 'signin' | 'signup';
@@ -26,6 +27,11 @@ interface AuthFormProps {
 }
 
 export function AuthForm({ type, redirectPath = '/' }: AuthFormProps) {
+  const params = useParams();
+  const locale = params.locale as string;
+  const { t } = useTranslation(locale);
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [formData, setFormData] = useState<AuthFormData>({
     email: '',
     password: '',
@@ -33,7 +39,8 @@ export function AuthForm({ type, redirectPath = '/' }: AuthFormProps) {
     full_name: '',
     language: 'en',
     termsAccepted: false,
-    referralCode: ''
+    referralCode: '',
+    confirmPassword: ''
   });
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -55,11 +62,6 @@ export function AuthForm({ type, redirectPath = '/' }: AuthFormProps) {
   });
   
   const { signIn, signUp, signInWithX } = useAuth();
-  const router = useRouter();
-  const params = useParams();
-  const searchParams = useSearchParams();
-  const locale = params.locale as string;
-  const { t } = useTranslation(locale);
   
   // Получаем реферальный код из URL и сохраняем его
   useEffect(() => {
@@ -156,8 +158,16 @@ export function AuthForm({ type, redirectPath = '/' }: AuthFormProps) {
     setShowResendButton(false);
 
     try {
+      // Sanitize form data before submission
+      const sanitizedData = sanitizeFormData(formData);
+
+      // Validate passwords match
+      if (sanitizedData.password !== sanitizedData.confirmPassword) {
+        throw new Error(t('auth.passwordsDoNotMatch'));
+      }
+
       if (type === 'signin') {
-        const { error } = await signIn(formData.email, formData.password);
+        const { error } = await signIn(sanitizedData.email, sanitizedData.password);
         if (error) {
           // Проверяем тип ошибки
           if (error.message.includes('Email not confirmed')) {
@@ -174,29 +184,29 @@ export function AuthForm({ type, redirectPath = '/' }: AuthFormProps) {
         }
       } else if (type === 'signup') {
         // For signup, if terms are not accepted, show error
-        if (!formData.termsAccepted) {
+        if (!sanitizedData.termsAccepted) {
           setError(t('auth.signup.acceptTermsError'));
           setIsLoading(false);
           return;
         }
 
-        console.log('Submitting signup with referral code:', formData.referralCode);
+        console.log('Submitting signup with referral code:', sanitizedData.referralCode);
         
         // Log referral information before signup
-        if (formData.referralCode) {
-          console.log('Referral code provided:', formData.referralCode);
+        if (sanitizedData.referralCode) {
+          console.log('Referral code provided:', sanitizedData.referralCode);
           console.log('Referrer ID from state:', referrerId);
           console.log('Referrer username from state:', referrerUsername);
         }
 
         const { error } = await signUp(
-          formData.email, 
-          formData.password,
+          sanitizedData.email, 
+          sanitizedData.password,
           {
-            username: formData.username,
-            full_name: formData.full_name,
-            language: formData.language,
-            referralCode: formData.referralCode
+            username: sanitizedData.username,
+            full_name: sanitizedData.full_name,
+            language: sanitizedData.language,
+            referralCode: sanitizedData.referralCode
           }
         );
         
@@ -208,14 +218,14 @@ export function AuthForm({ type, redirectPath = '/' }: AuthFormProps) {
           setIsSuccess(true);
           
           // If signup successful and we have a referral code, log it
-          if (formData.referralCode) {
-            console.log('Successful signup with referral code:', formData.referralCode);
+          if (sanitizedData.referralCode) {
+            console.log('Successful signup with referral code:', sanitizedData.referralCode);
           }
         }
       }
     } catch (err) {
       console.error('Authentication error:', err);
-      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
+      setError(err instanceof Error ? err.message : t('auth.signupError'));
     } finally {
       setIsLoading(false);
     }
@@ -231,7 +241,7 @@ export function AuthForm({ type, redirectPath = '/' }: AuthFormProps) {
       }
     } catch (err) {
       console.error('X authentication error:', err);
-      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
+      setError(err instanceof Error ? err.message : t('auth.social.loadingError'));
     } finally {
       setTwitterLoading(false);
     }
@@ -425,12 +435,12 @@ export function AuthForm({ type, redirectPath = '/' }: AuthFormProps) {
                 
                 {type === 'signup' && (
                   <div className="space-y-2">
-                    <Label htmlFor="referralCode">{t('referral.enterCode')}</Label>
+                    <Label htmlFor="referralCode">{t('auth.referral.enterCode')}</Label>
                     <Input
                       id="referralCode"
                       name="referralCode"
                       type="text"
-                      placeholder={t('referral.enterCodePlaceholder')}
+                      placeholder={t('auth.referral.enterCodePlaceholder')}
                       value={formData.referralCode}
                       onChange={(e) => {
                         const newValue = e.target.value;
@@ -443,7 +453,7 @@ export function AuthForm({ type, redirectPath = '/' }: AuthFormProps) {
                       disabled={isLoading}
                     />
                     <p className="text-xs text-muted-foreground">
-                      {t('referral.codeOptional')}
+                      {t('auth.referral.codeOptional')}
                     </p>
                   </div>
                 )}
